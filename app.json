@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "bml",
+    "name": "BILLK MOTOLINK LTD",
     "slug": "bml",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,9 +13,10 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.johnsila.billkmotolinkltd"
     },
     "web": {
       "bundler": "metro",
@@ -32,10 +33,20 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "7ffc81c5-d8e4-405f-bf42-c4f61e00f8cc"
+      }
+    },
+    "owner": "johnsila"
   }
 }
