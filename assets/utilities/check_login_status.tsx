@@ -11,7 +11,7 @@ const CheckIfThisUserIsStillLoggedIn = async () => {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           // console.log(userData.is_deleted == undefined);
-          console.log("checked login status");
+          // console.log("checked login status");
           
           
           if ((userData.is_deleted !== undefined && userData.is_deleted !== null && userData.is_deleted) || userData.is_active !== undefined && userData.is_active !== null && !userData.is_active) {

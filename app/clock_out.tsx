@@ -292,6 +292,7 @@ export default function UserClockOut() {
         checkIfClockOutAlreadyExists(`${day}-${month}-${year}`);
     };
 
+
     const checkIfClockOutAlreadyExists = async (string_for_date: any) => {
       
       if (!auth.currentUser) {
@@ -632,15 +633,19 @@ export default function UserClockOut() {
           >
               <View style={styles.modalContainer}>
                   <View style={styles.modalContent}>
-                      {!clockOutAvailable && <Text style={styles.modalTitle}>Confirm Clock-Out for date <Text style={styles.modalImp}>{dateString}</Text> with an amount of <Text style={styles.modalImp}>{formatCurrency(Math.ceil(netIncome))}.00</Text>.</Text>}
+                      {!clockOutAvailable &&
+                        <Text style={styles.modalTitle}>Confirm Clock-Out for date <Text style={styles.modalImp}>{dateString}</Text> with an amount of <Text style={styles.modalImp}>{formatCurrency(Math.ceil(netIncome))}.00</Text>.</Text>
+                      }
+                      
                       {clockOutAvailable && 
-                      <View style={{ backgroundColor: 'rgba(128, 0, 0, 0.175)', padding: 20, borderRadius: 20}}>
-                          <Text style={styles.modalTitle2}>There already exists a record showing that you have clocked out today.</Text>
-                          <Button1  title={`Exit`} bgColor='rgba(255, 0, 0, 0.775)' onPress={() => setShowClockOutConfirmationModal(false)}/>
+                        <View style={{ backgroundColor: 'rgba(128, 0, 0, 0.175)', padding: 20, borderRadius: 20}}>
+                            <Text style={styles.modalTitle2}>There already exists a record showing that you have clocked out today.</Text>
+                            <Button1  title={`Exit`} bgColor='rgba(255, 0, 0, 0.775)' onPress={() => setShowClockOutConfirmationModal(false)}/>
 
-                      </View>
+                        </View>
 
                       }
+
                       {!clockOutAvailable && <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 10, backgroundColor: "rgba(0, 128, 0, 0.075)", marginBottom: 20, borderRadius: 20, }}>
                           <Button1  title={`Cancel`} bgColor='rgba(255, 165, 0, 0.775)' onPress={() => setShowClockOutConfirmationModal(false)}/>
                           <Button1  title={`Confirm`} bgColor='green' onPress={FinishDay}/>

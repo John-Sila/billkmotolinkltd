@@ -42,7 +42,7 @@ const checkAndUpdateUnpushedAmount = async () => {
 
 
           const day = new Date().getDay();
-          console.log("day: ",day);
+          // console.log("day: ",day);
 
           if (!userData.is_deleted && userData.is_active && userData.role !== "CEO") { // Skip deleted, inactive & CEO users
             const userDocRef = doc(db, 'users', userDoc.id);
@@ -89,7 +89,7 @@ const checkAndUpdateUnpushedAmount = async () => {
           }
       });
 
-        console.log("Checked update amounts");
+        // console.log("Checked update amounts");
       } catch (error) {
         console.error("Error updating unpushed_amount for all users:", error);
       }

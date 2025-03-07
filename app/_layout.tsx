@@ -110,16 +110,6 @@ export default function TabLayout() {
       }}
     >
 
-      {/* <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color }) => <Ionicons name="home" size={28} color={color} />,
-        }}
-        redirect = {!isLoggedIn}
-      /> */}
-
-      
       <Tabs.Screen
         name="index"
         options={{
@@ -159,35 +149,6 @@ export default function TabLayout() {
           redirect={!isLoggedIn}
       />
 
-
-
-      {/* <Tabs.Screen
-        name="reports"
-        options={{
-          title: "Reports",
-          tabBarIcon: ({ color }) => <Ionicons name="document-text" size={28} color={color} />,
-        }}
-        redirect = {!isLoggedIn}
-      /> */}
-
-      {/* <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => <Ionicons name="person" size={28} color={color} />,
-        }}
-        redirect = {!!isLoggedIn}
-      /> */}
-
-      {/* <Tabs.Screen
-        name="clock_out"
-        options={{
-          title: "Clock Out",
-          tabBarIcon: ({ color }) => <Ionicons name="sunny" size={28} color={color} />,
-        }}
-        redirect = {!isLoggedIn}
-      /> */}
-
       <Tabs.Screen
         name="profile"
         options={{
@@ -208,27 +169,6 @@ export default function TabLayout() {
 
 
 
-      {/* <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => <Ionicons name="person" size={28} color={color} />,
-          tabBarButton: (props) => (
-            <TouchableOpacity
-              {...(props as TouchableOpacityProps)}
-              onPress={(event) => {
-                Vibration.vibrate(50); // Vibrate for 50ms
-                props.onPress?.(event);
-              }}
-            />
-          ),
-        }}
-        redirect={!isLoggedIn}
-      /> */}
-
-
-
-
       <Tabs.Screen
         name="clock_out"
         options={{
@@ -283,24 +223,6 @@ export default function TabLayout() {
         }}
         redirect={!isLoggedIn}
       />
-
-      {/* <Tabs.Screen
-        name="analytics"
-        options={{
-          title: "Analytics",
-          tabBarIcon: ({ color }) => <Ionicons name="bar-chart" size={28} color={color} />,
-        }}
-        redirect = {!isLoggedIn}
-      /> */}
-
-      {/* <Tabs.Screen
-        name="admin_panel"
-        options={{
-          title: "Admin Panel",
-          tabBarIcon: ({ color }) => <Ionicons name="shield-checkmark" size={28} color={color} />,
-        }}
-        redirect = {!isLoggedIn}
-      /> */}
 
     </Tabs>
   )

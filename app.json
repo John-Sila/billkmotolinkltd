@@ -9,32 +9,52 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location"
+        ],
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to track your position.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses your location even when the app is closed.",
+        "NSLocationAlwaysUsageDescription": "This app uses your location always."
+      },
+      "bundleIdentifier": "com.johnsila.billkmotolinkltd"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
       },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "WAKE_LOCK",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "POST_NOTIFICATIONS"
+      ],
       "package": "com.johnsila.billkmotolinkltd"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-dev-client"
     ],
     "experiments": {
       "typedRoutes": true
@@ -44,7 +64,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "7ffc81c5-d8e4-405f-bf42-c4f61e00f8cc"
+        "projectId": "229a8d98-f6ab-474e-82e2-afed2069b604"
       }
     },
     "owner": "johnsila"

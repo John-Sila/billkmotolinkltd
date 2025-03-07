@@ -69,23 +69,12 @@ export default function Index() {
       return;
     }
   
-    const latestLocation = data.locations[0];
+    const latestLocation = data.locations[data.locations.length - 1];
   
     if (!latestLocation || !latestLocation.coords) {
       console.warn("Invalid location data.");
       return;
     }
-  
-    // Get the current time
-    const currentTime = Date.now();
-  
-    // Check if 5 minutes have passed since the last update
-    if (currentTime - lastUpdateTime < 5 * 60 * 1000) {
-      // console.log("Skipping update: Less than 5 minutes since last update.");
-      return;
-    }
-    // Update the last update time
-    setLastUpdateTime(currentTime);
   
     // Process the location data
     setLocationBg({
@@ -111,11 +100,33 @@ export default function Index() {
         console.warn("No authenticated user found.");
         return;
       }
+
+
   
       const userRef = doc(db, "users", userUid);
+
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const lastTimestamp = userData?.location?.timestamp;
+
+        if (lastTimestamp?.seconds) {
+          const lastUpdateTime = lastTimestamp.seconds * 1000; // Convert to ms
+          const currentTime = Date.now();
+          const minutesPassed = (currentTime - lastUpdateTime) / (1000 * 60);
+
+          if (minutesPassed < 3) {
+            console.log(`Skipping update: Only ${minutesPassed.toFixed(1)} minutes since last update.`);
+            return;
+          }
+        }
+      }
+
       await setDoc(
         userRef,
         {
+          location_update_time: new Date().toISOString(),
           location: {
             latitude: locationData.latitude,
             longitude: locationData.longitude,
@@ -201,10 +212,10 @@ export default function Index() {
 
   useFocusEffect(
       useCallback(() => {
-        fetchData();
         CheckIfThisUserIsStillLoggedIn();
         checkAndUpdateUnpushedAmount();
         getUserLocation();
+        fetchData();
       }, [])
   );
 
@@ -213,29 +224,29 @@ export default function Index() {
   }, [])
   
   async function startLocationTracking() {
-    const { status } = await Location.requestBackgroundPermissionsAsync();
-  
-    if (status !== "granted") {
-      Alert.alert(
-        "Alert!",
-        "BILLK MOTOLINK LTD needs this permission. Allow permission for 'ALWAYS' access."
-      );
-      return;
-    }
-  
-    const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
-    if (!hasStarted) {
-      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 5 * 60 * 1000, // Update every 5 minutes (ignored in background)
-        distanceInterval: 100, // Update when moved by 100 meters
-        showsBackgroundLocationIndicator: true,
-      });
-  
-      console.log("Background location tracking started.");
-    } else {
-      console.log("Background location tracking is already running.");
-    }
+      const { status } = await Location.requestBackgroundPermissionsAsync();
+    
+      if (status !== "granted") {
+        Alert.alert(
+          "Alert!",
+          "BILLK MOTOLINK LTD needs this permission. Allow permission for 'ALWAYS' access."
+        );
+        return;
+      }
+    
+      const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+      if (!hasStarted) {
+        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 2 * 60 * 1000, // Update every 2 minutes (ignored in background)
+            distanceInterval: 100, // Update when moved by 100 meters
+            showsBackgroundLocationIndicator: true,
+        });
+    
+        console.log("Background location tracking started.");
+      } else {
+        console.log("Background location tracking is already running.");
+      }
   }
   
   // Convert heading degrees to movement direction

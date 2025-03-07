@@ -104,10 +104,10 @@ export default function Analytics() {
                     <Text style={[styles.linkText, activeSection === 'damageReports' && styles.activeLink]}>Damage Reports</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => {toggleSection('userLocation'); !(visibleSection === "userLocation") && handleSectionToggle('userLocation')}} style={{flexDirection: 'column', alignItems: 'center'}}>
+                {/* <TouchableOpacity onPress={() => {toggleSection('userLocation'); !(visibleSection === "userLocation") && handleSectionToggle('userLocation')}} style={{flexDirection: 'column', alignItems: 'center'}}>
                     <Ionicons name="location" size={22} color="gray" {...activeSection === 'userLocation' && styles.activeIcon} />
                     <Text style={[styles.linkText, activeSection === 'userLocation' && styles.activeLink]}>User Location</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
 
                 <TouchableOpacity onPress={() => {toggleSection('clockOutReports'); !(visibleSection === "clockOutReports") && handleSectionToggle('clockOutReports')}} style={{flexDirection: 'column', alignItems: 'center'}}>
                     <Ionicons name="bookmarks" size={22} color="gray" {...activeSection === 'clockOutReports' && styles.activeIcon} />

@@ -357,6 +357,10 @@ export default function ClockOutReports() {
                                                             <Text style={styles.innerText1}>⁕ Net Income: </Text>
                                                             <Text style={styles.innerText2}>{formatCurrency(parseInt(clockOutData.net ? clockOutData.net : "00"))}.00</Text>
                                                         </Text>
+                                                        <Text>
+                                                            <Text style={styles.innerText1}>⁕ In-App Balance: </Text>
+                                                            <Text style={styles.innerText2}>{formatCurrency(parseInt(clockOutData.in_app_balance ? clockOutData.in_app_balance : "00"))}.00</Text>
+                                                        </Text>
                                                         <Text><Text style={styles.innerText1}>⁕ Expenses: </Text></Text>
                                                         <View style={styles.evenInnerInnerDiv}>
                                                             <Text>
@@ -372,7 +376,7 @@ export default function ClockOutReports() {
                                                                 <Text style={styles.innerText1}>● Other: </Text>
                                                                 <Text style={styles.innerText2}>
                                                                     {clockOutData.expenses?.other?.name 
-                                                                        ? ` (${clockOutData.expenses.other.name})` 
+                                                                        ? `(${clockOutData.expenses.other.name}), ` 
                                                                         : ""} 
                                                                     {formatCurrency(parseInt(clockOutData.expenses?.other?.amount ? clockOutData.expenses?.other?.amount : "00"))}.00
 
@@ -400,6 +404,10 @@ export default function ClockOutReports() {
                                                             <Text style={styles.innerText1}>⁕ Net Income: </Text>
                                                             <Text style={styles.innerText2}>{formatCurrency(parseInt(clockOutData.net ? clockOutData.net : "00"))}.00</Text>
                                                         </Text>
+                                                        <Text>
+                                                            <Text style={styles.innerText1}>⁕ In-App Balance: </Text>
+                                                            <Text style={styles.innerText2}>{formatCurrency(parseInt(clockOutData.in_app_balance ? clockOutData.in_app_balance : "00"))}.00</Text>
+                                                        </Text>
                                                         <Text><Text style={styles.innerText1}>⁕ Expenses: </Text></Text>
                                                         <View style={styles.evenInnerInnerDiv}>
                                                             <Text>
@@ -415,7 +423,7 @@ export default function ClockOutReports() {
                                                                 <Text style={styles.innerText1}>● Other: </Text>
                                                                 <Text style={styles.innerText2}>
                                                                     {clockOutData.expenses?.other?.name 
-                                                                        ? ` (${clockOutData.expenses.other.name})` 
+                                                                        ? ` (${clockOutData.expenses.other.name}), ` 
                                                                         : ""} 
                                                                     {formatCurrency(parseInt(clockOutData.expenses?.other?.amount ? clockOutData.expenses?.other?.amount : "00"))}.00
 
@@ -444,7 +452,7 @@ export default function ClockOutReports() {
                     {
                         allUsers.map((user: any, key: number) => (
                             user.role === 'CEO' &&
-                            <View>
+                            <View key={key}>
                                 <TouchableOpacity onPress={() => toggleUser(user.uid)}>
                                     <View style={{display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
                                         <Text style={expandedUsers.includes(user.uid) ? styles.usernameEngaged : styles.usernameDisengaged}>{user.username} (CEO -- Unmanaged)</Text>

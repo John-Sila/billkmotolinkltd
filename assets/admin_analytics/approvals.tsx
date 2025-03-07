@@ -7,6 +7,7 @@ import Button1 from "../utilities/button1";
 import checkAndUpdateUnpushedAmount from "../utilities/check_increment_dates";
 // import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Approvals() {
     const [users, setUsers] = useState<any>([]);
@@ -124,6 +125,24 @@ export default function Approvals() {
         const month = new Date().getMonth();
         setLongMonth(months[month]);
     }
+
+    const getTimeAgo = (timestamp: any) => {
+        if (!timestamp) return "Unknown";
+        
+        const time = timestamp.toDate(); // Firestore Timestamp to Date
+        const now = new Date();
+        const diffMs = now.getTime() - time.getTime();
+      
+        const minutes = Math.floor(diffMs / (1000 * 60));
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+        if (minutes < 1) return "Just now";
+        if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+        if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+        return `${days} day${days === 1 ? "" : "s"} ago`;
+    };
+      
   
     const approveAll = async () => {
         try {
@@ -306,7 +325,7 @@ export default function Approvals() {
             fetchUsers();
             currentMonth();
         }
-      };
+    };
 
     const makePhoneCall = (phone: string) => {
         
@@ -329,6 +348,10 @@ export default function Approvals() {
         Linking.openURL(url).catch(() => {
             Alert.alert('Error', 'Make sure WhatsApp is installed on your device');
         });
+    };
+    const openGoogleMaps = (latitude: number, longitude: number) => {
+        const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+        Linking.openURL(url);
     };
 
       
@@ -385,10 +408,10 @@ export default function Approvals() {
                                 style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                             >
                                 <Text style={styles.username}>
-                                {user.username}
-                                <Text style={styles.activeStatus}>
-                                    {user.is_active ? " (Active)" : " (Inactive)"} -- {user.role}
-                                </Text>
+                                    {user.username}
+                                    <Text style={styles.activeStatus}>
+                                        {user.is_active ? " (Active)" : " (Inactive)"} -- {user.role}
+                                    </Text>
                                 </Text>
                             </TouchableOpacity>
 
@@ -403,6 +426,15 @@ export default function Approvals() {
                                     <Text style={styles.regText}>Unpushed Income: <Text style={styles.amounts}>{formatCurrency(parseInt(user.unpushed_amount))}.00</Text></Text>
                                     <Text style={styles.regText}>Performance: <Text style={styles.amounts}>{user.deviation_from_target ? Math.abs((parseInt(user.deviation_from_target[month]) / user.daily_target) * 100).toFixed(2) : 100}%</Text></Text>
                                     <Text style={styles.regText}>{longMonth} Net: <Text style={styles.amounts}>{user.net_incomes?.[month] ? formatCurrency(parseInt(user.net_incomes[month])) : formatCurrency(0)}.00</Text></Text>
+                                    <Text style={styles.regText}>
+                                        Location Updated: {" "}
+                                        <Text style={styles.amounts}>
+                                            {user.location && user.location.timestamp
+                                            ? getTimeAgo(user.location.timestamp)
+                                            : "Unknown"}
+                                        </Text>
+                                    </Text>
+
                                     <View
                                         style={{
                                         flexDirection: 'row',
@@ -435,6 +467,13 @@ export default function Approvals() {
                                             <View style={{ flexDirection: 'column', alignItems: 'center' }}>
                                                 <Ionicons name="logo-whatsapp" size={28} color={'green'} />
                                                 <Text style={{ fontWeight: 'bold', color: 'gray' }}>WhatsApp</Text>
+                                            </View>
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity onPress={() => openGoogleMaps(user.location?.latitude, user.location?.longitude)}>
+                                            <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                                                <Ionicons name="location" size={28} color="red" />
+                                                <Text style={{ fontWeight: 'bold', color: 'gray' }}>Locate</Text>
                                             </View>
                                         </TouchableOpacity>
 

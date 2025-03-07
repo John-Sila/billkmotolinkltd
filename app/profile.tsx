@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, Image, StatusBar, Button, StyleSheet, Alert, Modal, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, Image, StatusBar, Button, StyleSheet, Alert, Modal, ActivityIndicator, TouchableOpacity } from "react-native";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import db, { auth, subscribeToAuthChanges } from "@/assets/utilities/firebase_file";
 import { doc, getDoc, query, collection, where, getDocs, updateDoc } from "firebase/firestore";
 import checkAndUpdateUnpushedAmount from "@/assets/utilities/check_increment_dates";
+import { useNavigation } from "@react-navigation/native";
+import { Linking } from "react-native";
 
 export default function ProfileScreen() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -14,10 +16,21 @@ export default function ProfileScreen() {
   const [loadingText, setLoadingText] = useState<string>("");
   // const [waiting, setWaiting] = useState<boolean>(true);
 
+  const navigation: any = useNavigation();
+  const currentYear = new Date().getFullYear();
+
   useEffect(() => {
     const unsubscribe = subscribeToAuthChanges(setIsLoggedIn);
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (isLoggedIn) {
+      (async() => {const idToken = await user?.getIdToken(true); // 'true' forces refresh
+      console.log("Refreshed ID Token:", idToken);})();
+    }
+  }, [isLoggedIn]);
 
   const handleLogin = async () => {
     if (!(email.trim().length > 4) || !(password.trim().length > 3)) {
@@ -169,6 +182,15 @@ export default function ProfileScreen() {
             onChangeText={setPassword}
           />
           <Button title="Login" onPress={handleLogin} />
+          {/* <Text style={styles.ourDeclaration}>OPTIMABYTE SOFTWARES</Text> */}
+          <TouchableOpacity
+          style={styles.ourDeclarationOut}
+            onPress={() =>
+              Linking.openURL("https://wa.me/254717405109?text=`*Hello, Developer!*`\n")
+            }
+          >
+            <Text style={styles.ourDeclaration}>OPTIMABYTE SOFTWARES © {currentYear}</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -227,6 +249,18 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 150,
     marginBottom: 20,
+  },
+  ourDeclarationOut: {
+    marginTop: 150,
+  },
+  ourDeclaration: {
+    position: "fixed",
+    bottom: 0,
+    color: "rgb(230,230,230)",
+    fontWeight: 'bold',
+    fontFamily: 'monospace',
+    letterSpacing: 10,
+    textAlign: 'center',
   },
 
 

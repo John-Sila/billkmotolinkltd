@@ -128,11 +128,12 @@ export default function ReportingScreen({ navigation: any }: any) {
               longitude: location.coords.longitude,
               accuracy: location.coords.accuracy,
             },
+            report_time: new Date().toISOString(),
           };
           // Add the report to the "reports" collection in Firestore
           await addDoc(collection(db, 'reports'), reportData);
       
-          Alert.alert('Report submitted successfully');
+          Alert.alert('Success', 'Report submitted successfully');
       } catch (error) {
           console.error('Error submitting report:', error);
           Alert.alert('Failed to submit report. Please try again.');
