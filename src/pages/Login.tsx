@@ -4,6 +4,7 @@ import { auth, db } from "../assets/Firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
+import logo from "../assets/logo2.png";
 
 interface LoginProps {
   onLogin: () => void;
@@ -60,7 +61,7 @@ export default function Login({ onLogin }: LoginProps) {
         );
     }
 
-    if (userData.userRank && userData.userRank  !== "Rider") {
+    if (userData.userRank && userData.userRank  !== "Rider" && userData.userRank !== "Systems, IT") {
       setError("Access denied.");
       return toast("Only riders can log in for now.",
           {
@@ -86,24 +87,58 @@ export default function Login({ onLogin }: LoginProps) {
   return (
     <div className="loginMainDiv">
       <div><Toaster/></div>
-      <div className="loginForm">
-        <p className="title">BILLK MOTOLINK LTD</p>
-        <form className="form">
-          <div className="input-group">
-            <label htmlFor="email">Username</label>
-            <input type="email" name="email" id="email" placeholder="" onChange={e => setEmail(e.target.value)} />
-          </div>
-          <div className="input-group">
-            <label htmlFor="password">Password</label>
-            <input type="password" name="password" id="password" placeholder="" onChange={e => setPassword(e.target.value)} />
-            <div className="forgot">
-              <a rel="noopener noreferrer" href="#">Forgot Password ?</a>
-            </div>
-          </div>
-          <button className="sign" onClick={handleSubmit}>Sign in</button>
-        </form>
+
+      <form className="form_container" onSubmit={handleSubmit}>
+        <div className="logo_container">
+          <img className="logo" src={logo} alt="logo" width={150} height={150} />
+        </div>
+        <div className="title_container">
+          <p className="title">Authenticator</p>
+          <span className="subtitle">Please sign in.</span>
+        </div>
+        <br />
+
+        <table>
+          <tbody>
+            <tr>
+              <td><label className="input_label" htmlFor="loginEmail">Email</label></td>
+              <td>
+                <input type="email"
+                  className="input_field"
+                    value={email}
+                    onChange={(e) =>
+                      setEmail(e.target.value)
+                    }
+                    title="Login Email" name="loginEmail" id="loginEmail" />
+              </td>
+            </tr>
+            <tr>
+              <td><label className="input_label" htmlFor="loginPassword">Password</label></td>
+              <td>
+                <input type="password"
+                  className="input_field"
+                    value={password}
+                    onChange={(e) =>
+                      setPassword(e.target.value)
+                    }
+                    title="Login Password" name="loginPassword" id="loginPassword" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="forgot">
+          <a rel="noopener noreferrer" href="#">Forgot Password?</a>
+        </div>
+        <button className="sign-in_btn" onClick={handleSubmit}>Sign in</button>
+
         {error && <p style={{ color: "red", textAlign: "center" }}>{error}</p>}
-      </div>
+        <div className="separator">
+          <hr className="line" />
+          <span className="note">Authenticator</span>
+          <hr className="line" />
+        </div>
+      </form>
     </div>
   );
 }

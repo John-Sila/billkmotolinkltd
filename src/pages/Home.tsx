@@ -5,6 +5,7 @@ import PrimaryLoadingFragment from "../assets/PrimaryLoading";
 import { fetchWeather, type WeatherData } from "../services/weatherService";
 import { formatDateWithSuperscript, getGreeting, parseCurrency } from "../assets/publicFunctions";
 import NoUserFound from "../assets/NoUserFound";
+import toast, { Toaster } from "react-hot-toast";
 
 
 interface LocationData {
@@ -98,6 +99,7 @@ export default function Home() {
 
   return (
     <div className="home-container">
+      <div><Toaster /></div>
 
       {/* greetings */}
       <p className="greetings">{getGreeting()} {user.userName},</p>

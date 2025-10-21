@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import firebase from "firebase/compat/app";
 import "firebase/compat/firestore";
 import { fetchGeneralVariables, fetchUser, type GeneralVariables, type UserData } from "../services/userService";
 import PrimaryLoadingFragment from "../assets/PrimaryLoading";
@@ -14,7 +13,7 @@ import { doc, setDoc, getDoc, updateDoc, serverTimestamp, Timestamp } from "fire
 import AlertDialog from "../assets/Dialog";
 import { auth, db } from "../assets/Firebase";
 import { formatCurrency } from "../assets/CurrencyFormatter";
-import { formatElapsedTime, getDateKey, getDayOfWeek, getWeekName, toDouble } from "../assets/publicFunctions";
+import { formatElapsedTime, getDateKey, getDayOfWeek, getWeekName } from "../assets/publicFunctions";
 
 export default function Clockout() {
   const [loading, setLoading] = useState(true);
@@ -45,7 +44,6 @@ export default function Clockout() {
   const [mileage, setMileage] = useState<string>("");
   const [netIncome, setNetIncome] = useState<number>(0);
   const [selectedClockOutLocation, setSelectedClockOutLocation] = useState<string>("");
-
 
   // on component load, check auth state
   useEffect(() => {
@@ -103,15 +101,15 @@ export default function Clockout() {
   // compute net income onChange of literally every thing
   useEffect(() => {
     const netIncome = (Number(grossIncome) || 0) // gross
-                      - ((Number(commission) || 0) / 100 * (Number(grossIncome) || 0)) // commission
-                      + ((Number(prevInAppBalance) || 0) - (Number(todaysInAppBalance) || 0)) // in app balance diff
+      - ((Number(commission) || 0) / 100 * (Number(grossIncome) || 0)) // commission
+      + ((Number(prevInAppBalance) || 0) - (Number(todaysInAppBalance) || 0)) // in app balance diff
 
-                      // expenses
-                      - ((bsExpenseEnabled ? (Number(bsExpense) || 0) : 0)
-                      + (dbExpenseEnabled ? (Number(dbExpense) || 0) : 0)
-                      + (lunchExpenseEnabled ? (Number(lunchExpense) || 0) : 0)
-                      + (policeExpenseEnabled ? (Number(policeExpense) || 0) : 0)
-                      + (aOBExpenseEnabled ? (Number(aOBExpense) || 0) : 0))
+      // expenses
+      - ((bsExpenseEnabled ? (Number(bsExpense) || 0) : 0)
+      + (dbExpenseEnabled ? (Number(dbExpense) || 0) : 0)
+      + (lunchExpenseEnabled ? (Number(lunchExpense) || 0) : 0)
+      + (policeExpenseEnabled ? (Number(policeExpense) || 0) : 0)
+      + (aOBExpenseEnabled ? (Number(aOBExpense) || 0) : 0))
     setNetIncome(netIncome);
   }, [grossIncome, commission, todaysInAppBalance, prevInAppBalance, bsExpense, bsExpenseEnabled, dbExpense, dbExpenseEnabled, lunchExpense, lunchExpenseEnabled, policeExpense, policeExpenseEnabled, aOBExpense, aOBExpenseEnabled]);
   
@@ -228,6 +226,15 @@ export default function Clockout() {
       await toast.promise(
         (async () => {
           // 1. Update user profile fields
+          const userSnap = await getDoc(userRef);
+
+          if (!userSnap.exists()) return;
+          const userData = userSnap.data();
+          const currentMonth = new Date().toLocaleString("en-US", { month: "long" });
+          const existingNetIncomes = userData.netIncomes || {};
+          const currentMonthIncome = Number(existingNetIncomes[currentMonth] || 0);
+          existingNetIncomes[currentMonth] = currentMonthIncome + netIncome;
+
           await updateDoc(userRef, {
             todaysInAppBalance: Number(todaysInAppBalance) || 0,
             isWorkingOnSunday: false,
@@ -235,7 +242,8 @@ export default function Clockout() {
             netClockedLastly: netIncome,
             pendingAmount: (user?.pendingAmount || 0) + netIncome,
             lastClockDate: serverTimestamp(),
-            currentBike: "None"
+            currentBike: "None",
+            netIncomes: existingNetIncomes
           });
   
           // 2. Update clockout entry inside user profile
@@ -318,7 +326,7 @@ export default function Clockout() {
         }
       );
     } catch (error) {
-      return toast(`A critica issue occured. ${error}`, {
+      return toast(`A critical issue occured. ${error}`, {
         icon: "❗",
         style: {
           borderRadius: "10px",

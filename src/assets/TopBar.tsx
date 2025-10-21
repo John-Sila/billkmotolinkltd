@@ -1,6 +1,62 @@
+import { useEffect, useState } from "react";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { useLocation } from "react-router-dom";
+import { fetchGeneralVariables, fetchUser, type UserData } from "../services/userService";
 
 export default function TopBar() {
+  const [user, setUser] = useState<UserData | null>(null);
+  const [uid, setUid] = useState<string | null>(null);
+
+
+  // user
+  function getProfileImage(user: UserData | null): string {
+    const maleFallback = "https://img.freepik.com/free-vector/hand-drawn-side-profile-cartoon-illustration_23-2150517171.jpg?semt=ais_hybrid&w=740&q=80";
+    const femaleFallback = "https://t3.ftcdn.net/jpg/15/34/03/58/360_F_1534035806_6gn57ou4V0dVZY6l30h6nEB5gWQRAP6v.jpg";
+    const neutralFallback = "https://i.pinimg.com/1200x/40/8b/b0/408bb09524965d3fae10dcbe9f7168f1.jpg";
+
+    if (user?.pfp_url) return user.pfp_url;
+
+    switch (user?.gender?.toLowerCase()) {
+      case "male":
+        return maleFallback;
+      case "female":
+        return femaleFallback;
+      default:
+        return neutralFallback;
+    }
+  }
+
+
+   useEffect(() => {
+      const auth = getAuth();
+      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        if (firebaseUser) {
+          setUid(firebaseUser.uid);
+        } else {
+          setUid(null);
+        }
+      });
+  
+      return () => unsubscribe();
+    }, []);
+      
+    // after uid, fetch data
+    useEffect(() => {
+      if (!uid) return;
+  
+      async function loadUser() {
+        const userData = await fetchUser(uid);
+        const generalData = await fetchGeneralVariables();
+  
+        setUser(userData);
+      }
+  
+      loadUser();
+    }, [uid]);
+  
+
+
+
   const location = useLocation();
 
   // map routes to titles
@@ -11,6 +67,9 @@ export default function TopBar() {
     "/clock_in": "Clock In",
     "/clock_out": "Clock Out",
     "/corrections": "Corrections",
+    "/bikes_portal": "Bikes Portal",
+    "/batteries_portal": "Batteries Portal",
+    "/destinations": "Destinations",
     "/complains": "Complains",
     "/require": "Require",
     "/user_management": "User Management",
@@ -35,6 +94,8 @@ export default function TopBar() {
   };
 
   const title = titles[location.pathname] || "Page";
+
+  
 
   return (
     <div className="topBar" id="topBar">
@@ -61,7 +122,7 @@ export default function TopBar() {
           }
           className="hamburger" width="64px" height="64px" viewBox="-9.6 -9.6 43.20 43.20"
           fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#1C274C"><g id="SVGRepo_bgCarrier"
-          stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M4 6H20M4 12H14M4 18H9" stroke="#1C274C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
+          stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M4 6H20M4 12H14M4 18H9" stroke="#269b24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
 
         <div className="icon-container">
             <svg
@@ -93,14 +154,13 @@ export default function TopBar() {
             >
         </svg>
 
-        <svg width="64px"
-          onClick={() => {
-                const topBarTinyMenu = document.getElementById("topBarTinyMenu");
-                if (topBarTinyMenu) {
-                  topBarTinyMenu.style.display = topBarTinyMenu.style.display == "flex" ? "none" : "flex";
-                }
-              }}
-            height="64px" viewBox="-9.6 -9.6 43.20 43.20" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#1C274D" stroke-width="0.792"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.768"></g><g id="SVGRepo_iconCarrier"> <g id="style=bulk"> <g id="profile"> <path id="vector (Stroke)" fill-rule="evenodd" clip-rule="evenodd" d="M6.75 6.5C6.75 3.6005 9.1005 1.25 12 1.25C14.8995 1.25 17.25 3.6005 17.25 6.5C17.25 9.3995 14.8995 11.75 12 11.75C9.1005 11.75 6.75 9.3995 6.75 6.5Z" fill="#1C274D"></path> <path id="rec (Stroke)" fill-rule="evenodd" clip-rule="evenodd" d="M4.25 18.5714C4.25 15.6325 6.63249 13.25 9.57143 13.25H14.4286C17.3675 13.25 19.75 15.6325 19.75 18.5714C19.75 20.8792 17.8792 22.75 15.5714 22.75H8.42857C6.12081 22.75 4.25 20.8792 4.25 18.5714Z" fill="#1C274D"></path> </g> </g> </g></svg>
-    </div>
+        <img
+          src={getProfileImage(user)}
+          alt={`${user?.userName || "User"} profile picture`}
+          height={42}
+          width={42}
+          className="pfp"
+/>
+</div>
   );
 }

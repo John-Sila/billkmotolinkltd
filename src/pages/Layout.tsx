@@ -2,7 +2,7 @@ import { Outlet } from "react-router-dom";
 import SideNav from "../assets/SideNav";
 import TopBar from "../assets/TopBar";
 import { TopBarTinyMenu } from "../assets/topBarTinyMenu";
-import { BottomBar } from "../assets/BottomBar";
+// import { BottomBar } from "../assets/BottomBar";
 
 interface LayoutProps {
   onLogout: () => void;
@@ -17,7 +17,7 @@ export default function Layout({ onLogout }: LayoutProps) {
         <main className="content">
           <TopBarTinyMenu onLogout={onLogout} />
           <Outlet />
-          <BottomBar />
+          {/* <BottomBar /> */}
         </main>
       </div>
     </div>

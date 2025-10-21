@@ -21,7 +21,6 @@ import CashFlowStatements from "./pages/CashFlowStatements";
 import IncomeApproval from "./pages/IncomeApproval";
 import Profiles from "./pages/Profiles";
 import RiderComplaints from "./pages/RiderComplaints";
-import AssetManagement from "./pages/AssetManagement";
 import Batteries from "./pages/Batteries";
 import CreateMemo from "./pages/CreateMemo";
 import UserManagement from "./pages/UserManagement";
@@ -32,6 +31,9 @@ import Clockout from "./pages/Clockout";
 import DamageReports from "./pages/DamageReports";
 import Polls from "./pages/Polls";
 import PollCreation from "./pages/PollCreation";
+import BikesPortal from "./pages/BikesPortal";
+import BatteriesPortal from "./pages/BatteriesPortal";
+import Destinations from "./pages/Destinations";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -62,12 +64,14 @@ function App() {
             <Route path="/clock_in" element={<Clockin />} />
             <Route path="/clock_out" element={<Clockout />} />
             <Route path="/corrections" element={<Corrections />} />
+            <Route path="/bikes_portal" element={<BikesPortal />} />
+            <Route path="/destinations" element={<Destinations />} />
             <Route path="/complains" element={<Complain />} />
             <Route path="/require" element={<Require />} />
             <Route path="/user_management" element={<UserManagement />} />
             <Route path="/create_memo" element={<CreateMemo />} />
             <Route path="/batteries" element={<Batteries />} />
-            <Route path="/asset_management" element={<AssetManagement />} />
+            <Route path="/batteries_portal" element={<BatteriesPortal />} />
             <Route path="/rider_complaints" element={<RiderComplaints />} />
             <Route path="/profiles" element={<Profiles />} />
             <Route path="/income_approval" element={<IncomeApproval />} />
