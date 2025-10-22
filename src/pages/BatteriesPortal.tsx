@@ -14,6 +14,7 @@ export default function BatteriesPortal() {
   const [loading, setLoading] = useState(true);
   const [uid, setUid] = useState<string | null>(null);
   const [user, setUser] = useState<UserData | null>(null);
+  const [userName, setUserName] = useState<string>("");
   const [generalData, setGeneralData] = useState<GeneralVariables | null>(null);
   const [selectedBatteryLocation, setSelectedBatteryLocation] = useState<string>("");
 
@@ -47,6 +48,15 @@ export default function BatteriesPortal() {
   
       loadUser();
     }, [uid]);
+
+    interface Battery {
+      batteryName?: string;
+      batteryLocation?: string;
+      assignedBike?: string;
+      assignedRider?: string;
+      offTime?: { seconds: number; nanoseconds: number };
+      isAssigned?: boolean;
+    }
 
   const AddBattery = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();

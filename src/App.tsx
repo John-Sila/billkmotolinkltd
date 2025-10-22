@@ -35,6 +35,7 @@ import BikesPortal from "./pages/BikesPortal";
 import BatteriesPortal from "./pages/BatteriesPortal";
 import Destinations from "./pages/Destinations";
 import Analysis from "./pages/Analysis";
+import AllBatteries from "./pages/AllBatteries";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -65,6 +66,7 @@ function App() {
             <Route path="/clock_in" element={<Clockin />} />
             <Route path="/clock_out" element={<Clockout />} />
             <Route path="/corrections" element={<Corrections />} />
+            <Route path="/batteries" element={<AllBatteries />} />
             <Route path="/bikes_portal" element={<BikesPortal />} />
             <Route path="/destinations" element={<Destinations />} />
             <Route path="/complains" element={<Complain />} />

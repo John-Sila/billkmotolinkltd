@@ -243,6 +243,10 @@ export default function Home() {
                     <td>Clocked in status</td>
                     <td>{user.isClockedIn ? "True" : "false"}</td>
                   </tr>
+                  <tr>
+                    <td>Requirements</td>
+                    <td>{user.requirements ? Object.keys(user.requirements).length : 0}</td>
+                  </tr>
                 </tbody>
               </table>
             </div>

@@ -32,7 +32,7 @@ export default function Require() {
           .filter(
             (u) =>
               !u.isDeleted && // exclude deleted users
-              ["Rider", "Admin"].includes(u.userRank || "") // filter by role
+              ["Rider", "Admin", "Systems, IT"].includes(u.userRank || "") // filter by role
           );
 
         setUsers(fetchedUsers);
@@ -271,7 +271,7 @@ export default function Require() {
       <AlertDialog
           open={openRequireDialog}
           title="Confirm action"
-          description="Are you sure you want to add this bike?"
+          description="Are you sure you want to add this requirement?"
           onConfirm={handleRequireConfirm}
           onClose={handleRequireClose}
           />

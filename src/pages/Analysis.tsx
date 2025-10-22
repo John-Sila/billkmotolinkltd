@@ -99,81 +99,68 @@ export default function Analysis() {
     ];
 
   return (
-    <div className="weekly-deviations p-6">
-      <h2 className="text-xl font-semibold mb-4">Weekly Deviations Overview</h2>
+    <div className="weekly-deviations">
+        <h2>Weekly Deviations Overview</h2>
 
-      {/* Week Buttons */}
-      <div className="weeks-list flex flex-wrap gap-2 mb-6">
-        {weeks.map((week) => (
-          <button
-            key={week}
-            className={`week-btn px-3 py-2 rounded-md border text-sm transition-all duration-200 ${
-              selectedWeek === week
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-white hover:bg-gray-100 border-gray-300"
-            }`}
-            onClick={() => handleWeekSelect(week)}
-          >
-            {week.length > 8 ? week.slice(0, 8) + "…" : week}
-          </button>
-        ))}
-      </div>
-
-      {/* Totals Table */}
-      {totals && selectedWeek && (
-        <div className="totals-section bg-white p-4 rounded-xl shadow-md">
-          <h3 className="text-lg font-medium mb-3">{selectedWeek}</h3>
-
-          <table className="w-full text-sm border-collapse mb-6">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-3 text-left border-b">Total Gross Income</th>
-                <th className="p-3 text-left border-b">Total Net Income</th>
-                <th className="p-3 text-left border-b">Total Expenses</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="p-3 border-b text-green-700 font-medium">
-                  {totals.gross.toLocaleString()}
-                </td>
-                <td className="p-3 border-b text-orange-600 font-medium">
-                  {totals.net.toLocaleString()}
-                </td>
-                <td className="p-3 border-b text-red-600 font-medium">
-                  {totals.expenses.toLocaleString()}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          {/* Animated Bar Chart */}
-          <div className="chart-container mt-4" style={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                margin={{ top: 20, right: 30, left: 10, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis domain={[0, globalMaxGross ? globalMaxGross * 1.1 : 0]} />
-                <Tooltip />
-                <Legend />
-                <Bar
-                    dataKey="value"
-                    animationDuration={1200}
-                    radius={[10, 10, 0, 0]}
-                    >
-                    {chartData && chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                    </Bar>
-
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        {/* Week Buttons */}
+        <div className="weeks-list">
+            {weeks.map((week) => (
+            <button
+                key={week}
+                className={`week-btn ${selectedWeek === week ? "active" : ""}`}
+                onClick={() => handleWeekSelect(week)}
+            >
+                {week.length > 8 ? week.slice(0, 8) + "…" : week}
+            </button>
+            ))}
         </div>
-      )}
+
+        {/* Totals Table */}
+        {totals && selectedWeek && (
+            <div className="totals-section">
+            <h3>{selectedWeek}</h3>
+
+            <table>
+                <thead>
+                <tr>
+                    <th>Total Gross Income</th>
+                    <th>Total Net Income</th>
+                    <th>Total Expenses</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td className="gross">{totals.gross.toLocaleString()}</td>
+                    <td className="net">{totals.net.toLocaleString()}</td>
+                    <td className="expenses">{totals.expenses.toLocaleString()}</td>
+                </tr>
+                </tbody>
+            </table>
+
+            {/* Bar Chart */}
+            <div className="chart-container">
+                <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                    data={chartData}
+                    margin={{ top: 20, right: 30, left: 10, bottom: 0 }}
+                >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis domain={[0, globalMaxGross ? globalMaxGross * 1.1 : 0]} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="value" animationDuration={1200} radius={[10, 10, 0, 0]}>
+                    {chartData &&
+                        chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                    </Bar>
+                </BarChart>
+                </ResponsiveContainer>
+            </div>
+            </div>
+        )}
     </div>
+
   );
 }
