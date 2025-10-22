@@ -347,7 +347,6 @@ export default function Clockin() {
     const handleDropClose = async () => {
       setOpenDropDialog(false);
     }
-
     const LoadBattery = async (e: React.FormEvent) => {
       e.preventDefault();
       if (selectedLoadBatteries.length == 0) {
@@ -421,7 +420,6 @@ export default function Clockin() {
     const handleLoadClose = () => {
       setOpenLoadDialog(false);
     }
-
     const SwapBattery = async (e: React.FormEvent) => {
       e.preventDefault();
       if (swapBatteriesOff.length == 0 || swapBatteriesOn.length == 0) {
