@@ -577,6 +577,7 @@
         border: 3px solid #e5e5e5;
         border-radius: 1em;
         overflow: hidden;
+        padding: 2em;
 
         .reportTypeText{
           text-align: center;
@@ -593,6 +594,12 @@
         .batteryText {
           font-weight: 700;
           color: #484848;
+        }
+        label {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          margin-top: 1em;
         }
         label:hover {
           background-color: rgb(212, 212, 212);
@@ -1180,260 +1187,7 @@
   justify-content: start;
   align-items: center;
 
-  .form_container {
-    width: max-content;
-    height: fit-content;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 3em;
-    margin-bottom: 3em;
-    padding: 30px 40px 20px 40px;
-    box-shadow: 0px 106px 42px rgba(0, 0, 0, 0.01),
-      0px 59px 36px rgba(0, 0, 0, 0.05), 0px 26px 26px rgba(0, 0, 0, 0.09),
-      0px 7px 15px rgba(0, 0, 0, 0.1), 0px 0px 0px rgba(0, 0, 0, 0.1);
-    border-radius: 11px;
-    font-family: "Inter", sans-serif;
-
   
-    .logo_container {
-      display: grid;
-      place-items: center;
-    }
-  
-    .title_container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-  
-    .title {
-      margin: 0;
-      font-size: 1.25rem;
-      font-weight: 700;
-    }
-  
-    .subtitle {
-      font-size: 0.725rem;
-      max-width: 80%;
-      text-align: center;
-      line-height: 1.1rem;
-      color: #8B8E98
-    }
-  
-    .input_container {
-      width: 100%;
-      height: fit-content;
-      position: relative;
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 5px;
-
-
-  
-      .radio-input {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        width: 100%;
-        border: 3px solid #e5e5e5;
-        border-radius: 1em;
-        overflow: hidden;
-
-        .reportTypeText{
-          text-align: center;
-          font-weight: bolder;
-          padding: 1em;
-        }
-        
-        * {
-          box-sizing: border-box;
-          padding: 0;
-          margin: 0;
-        }
-        
-        label {
-          display: flex;
-          align-items: center;
-          gap: 15px;
-          padding: 0px 20px;
-          width: 100%;
-          cursor: pointer;
-          height: 50px;
-          position: relative;
-          transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-
-        }
-        label:hover {
-          background-color: rgb(212, 212, 212);
-        }
-        
-        label::before {
-          position: absolute;
-          content: "";
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          width: 100%;
-          height: 45px;
-          z-index: -1;
-          transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-          border-radius: 10px;
-          border: 2px solid transparent;
-        }
-        label:hover::before {
-          transition: all 0.2s ease;
-        }
-        
-        .label input[type="radio"] {
-          appearance: none;
-          width: 17px;
-          height: 17px;
-          border-radius: 50%;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-        .label input[type="radio"]:checked {
-          background-color: #435dd8;
-          -webkit-animation: puls 0.7s forwards;
-          animation: pulse 0.7s forwards;
-        }
-        
-        .label input[type="radio"]:before {
-          content: "";
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          transition: all 0.1s cubic-bezier(0.165, 0.84, 0.44, 1);
-          background-color: #fff;
-          transform: scale(0);
-        }
-        
-        .label input[type="radio"]:checked::before {
-          transform: scale(1);
-        }
-
-        .label:has(input:checked)::before {
-          background-color: rgb(212, 212, 212);
-          border: none;
-          height: 50px;
-          border-radius: 1em;
-        }
-      }
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-      label::before {
-        position: absolute;
-        content: "";
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 220px;
-        height: 45px;
-        z-index: -1;
-        transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        border-radius: 10px;
-        border: 2px solid transparent;
-      }
-      label:hover::before {
-        transition: all 0.2s ease;
-      }
-  
-    }
-  
-    .icon {
-      width: 20px;
-      position: absolute;
-      z-index: 99;
-      left: 12px;
-      bottom: 9px;
-    }
-  
-    .input_label {
-      font-size: 0.75rem;
-      color: #8B8E98;
-      font-weight: 600;
-    }
-  
-    .input_field {
-      width: auto;
-      height: 40px;
-      padding: 0 0 0 10px;
-      border-radius: 7px;
-      outline: none;
-      border: 1px solid #e5e5e5;
-      filter: drop-shadow(0px 1px 0px #efefef)
-        drop-shadow(0px 1px 0.5px rgba(239, 239, 239, 0.5));
-      transition: all 0.3s cubic-bezier(0.15, 0.83, 0.66, 1);
-      background-color: #e5e5e5;
-    }
-  
-    .input_field:focus {
-      border: 1px solid transparent;
-      box-shadow: 0px 0px 0px 2px #242424;
-      background-color: transparent;
-    }
-  
-    .sign-in_btn {
-      width: 100%;
-      height: 40px;
-      border: 0;
-      background: var(--primary-color);
-      border-radius: 7px;
-      outline: none;
-      color: #ffffff;
-      cursor: pointer;
-    }
-    .sign-in_btn:disabled {
-      opacity: 1;
-      pointer-events: auto;
-      cursor: pointer;
-    }
-  
-  
-    .separator {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 2em;
-      color: #8B8E98;
-  
-      .line {
-        display: block;
-        width: 30%;
-        height: 1px;
-        border: 0;
-        background-color: #e8e8e8;
-      }
-  
-      .note {
-        font-size: 0.75rem;
-        color: #8B8E98;
-      }
-    }
-
-
-  }
 
 
 }

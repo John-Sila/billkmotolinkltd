@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 import { db } from "../assets/Firebase";
 import { formatCurrency } from "../assets/CurrencyFormatter";
 
@@ -11,7 +11,6 @@ export default function DailyReports() {
   useEffect(() => {
     const fetchClockouts = async () => {
       try {
-        toast.loading("Loading clockouts...");
         const usersSnapshot = await getDocs(collection(db, "users"));
 
         const fetched = usersSnapshot.docs
@@ -60,7 +59,6 @@ export default function DailyReports() {
           toast.success(`Loaded ${fetched.length} users with clockouts`);
         }
         setUsersData(fetched);
-        toast.dismiss();
       } catch (error) {
         toast.dismiss();
         toast.error("Failed to load clockouts");
@@ -74,7 +72,7 @@ export default function DailyReports() {
 
   return (
     <div className="dr-dashboard">
-
+      <div><Toaster /></div>
       {/* User selection buttons */}
       <div className="user-list">
         {usersData.map((user) => (

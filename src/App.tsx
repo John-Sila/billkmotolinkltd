@@ -34,6 +34,7 @@ import PollCreation from "./pages/PollCreation";
 import BikesPortal from "./pages/BikesPortal";
 import BatteriesPortal from "./pages/BatteriesPortal";
 import Destinations from "./pages/Destinations";
+import Analysis from "./pages/Analysis";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -84,6 +85,7 @@ function App() {
             <Route path="/incidences_and_accidents" element={<IncidencesAndAccidents />} />
             <Route path="/daily_reports" element={<DailyReports />} />
             <Route path="/weekly_reports" element={<WeeklyReports />} />
+            <Route path="/analysis" element={<Analysis />} />
             <Route path="/admin_and_analytics" element={<AdminAndAnalytics />} />
             <Route path="/chatrooms" element={<Chatrooms />} />
             <Route path="/my_profile" element={<Profile />} />

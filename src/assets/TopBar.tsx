@@ -88,6 +88,7 @@ export default function TopBar() {
     "/incidences_and_accidents": "Incidences & Accidents",
     "/daily_reports": "Daily Reports",
     "/weekly_reports": "Weekly Reports",
+    "/analysis": "Analysis",
     "/admin_and_analytics": "Admin & Analytics",
     "/chatrooms": "Chatrooms",
     "/my_profile": "Me",

@@ -209,18 +209,18 @@ export default function DamageReports() {
                 type="radio"
                 id="value-1"
                 name="value-radio"
-                value="value-1"
+                value="Mechanical Break-Down"
               />
               <p className="text">Mechanical Break-Down</p>
             </label>
             <label className="label" 
                 onClick={() => setReportType("Police Arrest")}>
-              <input type="radio" id="value-2" name="value-radio" value="value-2" />
+              <input type="radio" id="Police Arrest" name="value-radio" value="value-2" />
               <p className="text">Police Arrest</p>
             </label>
             <label className="label"
                 onClick={() => setReportType("Road Accident")}>
-              <input type="radio" id="value-3" name="value-radio" value="value-3" />
+              <input type="radio" id="Road Accident" name="value-radio" value="value-3" />
               <p className="text">Road Accident</p>
             </label>
           </div>
