@@ -27,6 +27,8 @@ export default function Clockin() {
   const [swapBatteriesOff, setSwapBatteriesOff] = useState<string[]>([]);
   const [swapBatteriesOn, setSwapBatteriesOn] = useState<string[]>([]);
   const [ourBatteriesCount, setOurBatteriesCount] = useState<null | number>(null);
+  const [freeBatteriesCount, setFreeBatteriesCount] = useState<number>(0);
+  const [freeBikesCount, setFreeBikesCount] = useState<number>(0);
   const [openClockInDialog, setOpenClockInDialog] = useState(false);
   const [openSwapDialog, setOpenSwapDialog] = useState(false);
   const [openLoadDialog, setOpenLoadDialog] = useState(false);
@@ -42,7 +44,6 @@ export default function Clockin() {
           setLoading(false);
         }
       });
-  
       return () => unsubscribe();
     }, []);
   
@@ -64,14 +65,21 @@ export default function Clockin() {
         const batteriesAssignedToMe = Object.values(batteries).filter(
           (battery: any) => battery.assignedRider === userName
         ).length;
+        const freeBatteries = Object.values(batteries).filter(
+          (battery: any) => battery.assignedRider === "None"
+        ).length;
+
+        const unassignedBikes = Object.entries(generalData?.bikes ?? {}).filter(
+          ([, bike]) => bike.isAssigned === false
+        ).length;
 
         setOurBatteriesCount(batteriesAssignedToMe);
+        setFreeBatteriesCount(freeBatteries)
+        setFreeBikesCount(unassignedBikes)
       }
 
       loadUser();
     }, [uid]);
-
-
 
     if (loading) return <PrimaryLoadingFragment />;
 
@@ -135,8 +143,8 @@ export default function Clockin() {
       }
 
       // all rentals
-      if (!selectedBatteries.some((b) => b.startsWith("BK"))) {
-        return toast("You cannot clockin with just rentals.", {
+      if (selectedBatteries.length > 0 && selectedBatteries.every((b) => b.toUpperCase().includes("RENT"))) {
+        return toast("You cannot clock in with only rentals.", {
           icon: "❗",
           style: {
             borderRadius: "10px",
@@ -145,6 +153,7 @@ export default function Clockin() {
           },
         });
       }
+
 
       // mileage lacking
       if (mileage === "" || isNaN(Number(mileage)) || Number(mileage) < 0) {
@@ -225,7 +234,7 @@ export default function Clockin() {
                 bikeUpdates[`bikes.${selectedBike}.isAssigned`] = true;
                 await updateDoc(generalRef, bikeUpdates);
               } else {
-                console.warn("Selected bike not found in bikes map:", selectedBike);
+                console.warn("Selected bike was not found in bikes map:", selectedBike);
               }
             }
 
@@ -531,102 +540,118 @@ export default function Clockin() {
               <span className="subtitle">Begin your shift.</span>
             </div>
             <br />
-            <div className="input_container">
-              <table>
-                <thead>
-                  <tr>
-                    <th><label className="input_label" htmlFor="clockin_bike">Bike</label></th>
-                    <th>
-                      <select
-                        title="Select Bike"
-                        className="styled-select"
-                        value={selectedBike?.toString() ?? ""}
-                        onChange={(e) => setSelectedBike(e.target.value)}
-                        >
-                        <option value="">Select a bike</option>
-                        {Object.entries(generalData?.bikes ?? {})
-                          .filter(([, bike]) => bike.isAssigned === false)
-                          .map(([bikeName]) => (
-                            <option key={bikeName} value={bikeName}>
-                              {bikeName}
-                            </option>
-                          ))}
-                        <td>
+            {
+                freeBatteriesCount == 0 && (
+                  <label className="input_label" htmlFor="">No more batteries left. Check after a while.</label>
+                )
+              }
+            {
+              freeBikesCount == 0 && (
+                <label className="input_label" htmlFor="">No more batteries left. Check after a while.</label>
+              )
+            }
+            {
+              freeBikesCount > 0 && freeBatteriesCount > 0 && (
+                <>
+                  <div className="input_container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th><label className="input_label" htmlFor="clockin_bike">Bike</label></th>
+                          <th>
+                            <select
+                              title="Select Bike"
+                              className="styled-select"
+                              value={selectedBike?.toString() ?? ""}
+                              onChange={(e) => setSelectedBike(e.target.value)}
+                              >
+                              <option value="">Select a bike</option>
+                              {Object.entries(generalData?.bikes ?? {})
+                                .filter(([, bike]) => bike.isAssigned === false)
+                                .map(([bikeName]) => (
+                                  <option key={bikeName} value={bikeName}>
+                                    {bikeName}
+                                  </option>
+                              ))}
+                              <td>
 
-                        </td>
-                      </select>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>
-                      <label className="input_label" htmlFor="clockin_mileage">Batteries</label>
-                    </td>
-                    <td>
-                      <table className="inner-table">
-                        <tbody>
-                          
-                          {Object.entries(generalData?.batteries ?? {})
-                            .filter(([, battery]) => battery.assignedBike === "None")
-                            .map(([batteryName, battery]) => (
-                              <tr>
-                                <label key={batteryName} style={{ display: "block", marginBottom: "6px" }}>
-                                  <input
-                                      type="checkbox"
-                                      value={battery.batteryName}
-                                      checked={selectedBatteries.includes(battery.batteryName)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          if (selectedBatteries.length < 2) {
-                                            setSelectedBatteries([...selectedBatteries, battery.batteryName]);
-                                          }
-                                        } else {
-                                          setSelectedBatteries(
-                                            selectedBatteries.filter((b) => b !== battery.batteryName)
-                                          );
-                                        }
-                                      }}
-                                      disabled={
-                                        !selectedBatteries.includes(battery.batteryName) &&
-                                        selectedBatteries.length >= 2
-                                      }
-                                    />
-                                    <span style={{ marginLeft: "8px" }}>
-                                      {battery.batteryName} ({battery.batteryLocation})
-                                    </span>
-                                </label>
+                              </td>
+                            </select>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>
+                            <label className="input_label" htmlFor="clockin_mileage">Batteries</label>
+                          </td>
+                          <td>
+                            <table className="inner-table">
+                              <tbody>
+                                
+                                {Object.entries(generalData?.batteries ?? {})
+                                  .filter(([, battery]) => battery.assignedBike === "None")
+                                  .map(([batteryName, battery]) => (
+                                    <tr>
+                                      <label key={batteryName} style={{ display: "block", marginBottom: "6px" }}>
+                                        <input
+                                            type="checkbox"
+                                            value={battery.batteryName}
+                                            checked={selectedBatteries.includes(battery.batteryName)}
+                                            onChange={(e) => {
+                                              if (e.target.checked) {
+                                                if (selectedBatteries.length < 2) {
+                                                  setSelectedBatteries([...selectedBatteries, battery.batteryName]);
+                                                }
+                                              } else {
+                                                setSelectedBatteries(
+                                                  selectedBatteries.filter((b) => b !== battery.batteryName)
+                                                );
+                                              }
+                                            }}
+                                            disabled={
+                                              !selectedBatteries.includes(battery.batteryName) &&
+                                              selectedBatteries.length >= 2
+                                            }
+                                          />
+                                          <span style={{ marginLeft: "8px" }}>
+                                            {battery.batteryName} ({battery.batteryLocation})
+                                          </span>
+                                      </label>
 
-                              </tr>
-                          ))}
+                                    </tr>
+                                ))}
 
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
 
-                  <tr>
-                    <td>
-                        <label className="input_label" htmlFor="clockin_mileage">Mileage</label>
-                    </td>
-                    <td>
-                        <input type="number"
-                          className="input_field" 
-                          placeholder="0"
-                            value={mileage}
-                            onChange={(e) =>
-                              setMileage(e.target.value)
-                            }
-                            onWheel={e => e.currentTarget.blur()}
-                            title="Clockin Mileage" name="clockin_mileage" id="clockin_mileage" />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <button title="Clock In" type="submit" className="sign-in_btn" >
-              <span>Clock In</span>
-            </button>
+                        <tr>
+                          <td>
+                              <label className="input_label" htmlFor="clockin_mileage">Mileage</label>
+                          </td>
+                          <td>
+                              <input type="number"
+                                className="input_field" 
+                                placeholder="0"
+                                  value={mileage}
+                                  onChange={(e) =>
+                                    setMileage(e.target.value)
+                                  }
+                                  onWheel={e => e.currentTarget.blur()}
+                                  title="Clockin Mileage" name="clockin_mileage" id="clockin_mileage" />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <button title="Clock In" type="submit" className="sign-in_btn" >
+                    <span>Clock In</span>
+                  </button>
+                </>
+              )
+            }
     
             <div className="separator">
               <hr className="line" />
@@ -654,7 +679,7 @@ export default function Clockin() {
 
           {/* swap form */}
           {
-            ourBatteriesCount > 0 && (
+            ourBatteriesCount > 0 && freeBatteriesCount > 1 && (
               <form className="form_container" onSubmit={SwapBattery}>
                 <div className="logo_container">
                   <img className="logo" src={logo} alt="logo" width={150} height={150} />
@@ -785,7 +810,7 @@ export default function Clockin() {
 
           {/* load form */}
           {
-            ourBatteriesCount < 2 && (
+            ourBatteriesCount < 2 && freeBatteriesCount > 1 && (
               <form className="form_container" onSubmit={LoadBattery}>
                 <div className="logo_container">
                   <img className="logo" src={logo} alt="logo" width={150} height={150} />

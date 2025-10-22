@@ -85,7 +85,6 @@ export default function BatteriesPortal() {
       return;
     }
 
-    if (loading) return <PrimaryLoadingFragment />;
     
     return toast.promise(
       (async () => {
@@ -141,6 +140,7 @@ export default function BatteriesPortal() {
 
         // Optional refresh function after completion
         // loadBatteries?.();
+        setBatteryName("")
       })(),
       {
         loading: "Adding battery...",
@@ -152,9 +152,13 @@ export default function BatteriesPortal() {
       }
     );
   }
+
   const handleBatteriesPortalClose = () => {
     setOpenBatteriesPortalDialog(false);
   }
+
+  
+  if (loading) return <PrimaryLoadingFragment />;
 
     
   return (

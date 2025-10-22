@@ -89,6 +89,7 @@ export default function BikesPortal() {
             // Step 6: Update Firestore (guaranteed path now exists)
             await updateDoc(bikesRef, { bikes: updatedBikes });
 
+            setBikePlate("")
             return cleanPlate;
             })(),
             {

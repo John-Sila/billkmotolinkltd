@@ -236,7 +236,7 @@ export default function Clockout() {
           existingNetIncomes[currentMonth] = currentMonthIncome + netIncome;
 
           await updateDoc(userRef, {
-            todaysInAppBalance: Number(todaysInAppBalance) || 0,
+            currentInAppBalance: Number(todaysInAppBalance) || 0,
             isWorkingOnSunday: false,
             isClockedIn: false,
             netClockedLastly: netIncome,
