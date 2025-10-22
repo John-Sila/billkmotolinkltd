@@ -39,7 +39,7 @@ export default function DamageReports() {
       if (!uid) return;
   
       async function loadUser() {
-        const data = await fetchUser(uid);
+        const data = await fetchUser(uid || "");
         setUser(data);
         setLoading(false);
       }
