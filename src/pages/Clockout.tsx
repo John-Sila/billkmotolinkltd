@@ -282,7 +282,7 @@ export default function Clockout() {
                 [dayOfWeek]: {
                   grossDeviation: parseFloat(grossIncome) - numTarget,
                   grossIncome: parseFloat(grossIncome),
-                  netDeviation: parseFloat(netIncome.toString()) - parseFloat(numTarget.toString()),
+                  // netDeviation: parseFloat(netIncome.toString()) - parseFloat(numTarget.toString()),
                   netGrossDifference: parseFloat(grossIncome) - netIncome,
                   netIncome: parseFloat(netIncome.toString()),
                 },
@@ -355,7 +355,7 @@ export default function Clockout() {
 
         {
           !user.isClockedIn && (
-            <p className="clockinFirst">You will need to clock in first</p>
+            <p className="input_label">You will need to clock in first</p>
           )
         }
 

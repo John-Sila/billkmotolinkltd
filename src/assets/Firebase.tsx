@@ -18,6 +18,17 @@ const firebaseConfig = {
   measurementId: "G-M4V2210K36"
 };
 
+// const firebaseConfig = {
+//   apiKey: "AIzaSyBe-8zPGr7PxjEUHiCBeGleMOoBrCT16iY",
+//   authDomain: "billkmotolinkltd.firebaseapp.com",
+//   databaseURL: "https://billkmotolinkltd-default-rtdb.firebaseio.com",
+//   projectId: "billkmotolinkltd",
+//   storageBucket: "billkmotolinkltd.firebasestorage.app",
+//   messagingSenderId: "930252947055",
+//   appId: "1:930252947055:web:4515f4fc59b6ff67b6179a",
+//   measurementId: "G-MW79LLNQS5"
+// };
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);

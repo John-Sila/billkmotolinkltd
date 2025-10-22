@@ -205,149 +205,151 @@ export default function UserManagement() {
   
     if (loading) return <PrimaryLoadingFragment />;
   
-  return (
-    <div className="clockouts-container">
-      <div><Toaster /></div>
-      <form className="form_container" onSubmit={AddUser}>
-          <div className="logo_container">
-          <img className="logo" src={logo} alt="logo" width={150} height={150} />
-          </div>
-          <div className="title_container">
-          <p className="title">Users</p>
-          <span className="subtitle">Add a user</span>
-          </div>
-          <br />
+    return (
+        <div className="clockouts-container">
+        <div><Toaster /></div>
+        <form className="form_container" onSubmit={AddUser}>
+            <div className="logo_container">
+            <img className="logo" src={logo} alt="logo" width={150} height={150} />
+            </div>
+            <div className="title_container">
+            <p className="title">Users</p>
+            <span className="subtitle">Add a user</span>
+            </div>
+            <br />
 
-          <div>
-              <table>
-                  <thead>
-                  <tr>
-                      <th>Parameter</th>
-                      <th>Value</th>
-                  </tr>
-                  </thead>
+            <div>
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                    </tr>
+                    </thead>
 
-                  <tbody>
+                    <tbody>
 
-                  {/* user name */}
-                  <tr>
-                      <td><label className="input_label" htmlFor="fullName">Full Name</label></td>
-                      <input
-                          type="text"
-                          name="fullName"
-                          id="fullName"
-                          value={fullName || ""}
-                          onChange={(e) => setFullName(e.target.value)}
-                          title="Battery Number" required aria-required/>
-                  </tr>
-                  <tr>
-                      <td><label className="input_label" htmlFor="email">Email</label></td>
-                      <input
-                          type="email"
-                          name="email"
-                          id="email"
-                          value={newUserEmail || ""}
-                          onChange={(e) => setNewUserEmail(e.target.value)}
-                          title="Email" required aria-required/>
-                  </tr>
-                  <tr>
-                      <td><label className="input_label" htmlFor="password">Password</label></td>
-                      <input
-                          type="text"
-                          name="password"
-                          id="password"
-                          value={password || ""}
-                          onChange={(e) => setPassword(e.target.value)}
-                          title="Battery Number" required aria-required/>
-                  </tr>
-                  
-                  <tr>
-                      <td><label className="input_label" htmlFor="idNumber">ID Number</label></td>
-                      <input
-                          type="number"
-                          name="idNumber"
-                          id="idNumber"
-                          value={idNumber || ""}
-                          onChange={(e) => setIdNumber(e.target.value)}
-                          title="ID Number" required aria-required/>
-                  </tr>
+                    {/* user name */}
+                    <tr>
+                        <td><label className="input_label" htmlFor="fullName">Full Name</label></td>
+                        <input
+                            type="text"
+                            name="fullName"
+                            id="fullName"
+                            value={fullName || ""}
+                            onChange={(e) => setFullName(e.target.value)}
+                            title="Full Name" required aria-required/>
+                    </tr>
+                    <tr>
+                        <td><label className="input_label" htmlFor="email">Email</label></td>
+                        <input
+                            type="email"
+                            name="email"
+                            id="email"
+                            value={newUserEmail || ""}
+                            onChange={(e) => setNewUserEmail(e.target.value)}
+                            title="Email" required aria-required/>
+                    </tr>
+                    <tr>
+                        <td><label className="input_label" htmlFor="password">Password</label></td>
+                        <input
+                            type="text"
+                            name="password"
+                            id="password"
+                            value={password || ""}
+                            onChange={(e) => setPassword(e.target.value)}
+                            title="Battery Number" required aria-required/>
+                    </tr>
+                    
+                    <tr>
+                        <td><label className="input_label" htmlFor="idNumber">ID Number</label></td>
+                        <input
+                            type="number"
+                            name="idNumber"
+                            id="idNumber"
+                            onWheel={e => e.currentTarget.blur()}
+                            value={idNumber || ""}
+                            onChange={(e) => setIdNumber(e.target.value)}
+                            title="ID Number" required aria-required/>
+                    </tr>
 
-                  <tr>
-                      <td><label className="input_label" htmlFor="phoneNumber">Phone Number</label></td>
-                      <input
-                          type="number"
-                          name="phoneNumber"
-                          id="phoneNumber"
-                          value={phoneNumber || ""}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          title="Phone Number" required aria-required/>
-                  </tr>
+                    <tr>
+                        <td><label className="input_label" htmlFor="phoneNumber">Phone Number</label></td>
+                        <input
+                            type="number"
+                            name="phoneNumber"
+                            onWheel={e => e.currentTarget.blur()}
+                            id="phoneNumber"
+                            value={phoneNumber || ""}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            title="Phone Number" required aria-required/>
+                    </tr>
 
 
-                  {/* gender */}
-                  <tr>
-                    <td><label className="input_label" htmlFor="gender">Gender</label></td>
-                    <td>
-                      <select
-                            title="Select Gender"
-                            name="gender"
-                            id="gender"
-                            className="styled-select"
-                            value={selectedGender?.toString() ?? ""}
-                            onChange={(e) => setSelectedGender(e.target.value)}
-                            required aria-required
-                            >
-                            <option value="">Select gender</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                          </select>
-                    </td>
-                  </tr>
-
-                  {/* role */}
-                  <tr>
-                    <td><label className="input_label" htmlFor="role">Role</label></td>
-                    <td>
+                    {/* gender */}
+                    <tr>
+                        <td><label className="input_label" htmlFor="gender">Gender</label></td>
+                        <td>
                         <select
-                            title="Select Role"
-                            name="role"
-                            id="role"
-                            className="styled-select"
-                            value={selectedRole?.toString() ?? ""}
-                            onChange={(e) => setSelectedRole(e.target.value)}
-                            required aria-required
-                            >
-                            <option value="">Select role</option>
-                            <option value="Rider">Rider</option>
-                            <option value="Admin">Administrator</option>
-                            <option value="HR">Human Resource</option>
-                        </select>
-                    </td>
-                  </tr>
+                                title="Select Gender"
+                                name="gender"
+                                id="gender"
+                                className="styled-select"
+                                value={selectedGender?.toString() ?? ""}
+                                onChange={(e) => setSelectedGender(e.target.value)}
+                                required aria-required
+                                >
+                                <option value="">Select gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                        </td>
+                    </tr>
 
-                  </tbody>
-              </table>
+                    {/* role */}
+                    <tr>
+                        <td><label className="input_label" htmlFor="role">Role</label></td>
+                        <td>
+                            <select
+                                title="Select Role"
+                                name="role"
+                                id="role"
+                                className="styled-select"
+                                value={selectedRole?.toString() ?? ""}
+                                onChange={(e) => setSelectedRole(e.target.value)}
+                                required aria-required
+                                >
+                                <option value="">Select role</option>
+                                <option value="Rider">Rider</option>
+                                <option value="Admin">Administrator</option>
+                                <option value="HR">Human Resource</option>
+                            </select>
+                        </td>
+                    </tr>
 
-              <button title="Add User" type="submit" className="sign-in_btn" >
-                  <span>Add User</span>
-              </button>
+                    </tbody>
+                </table>
 
-          </div>
+                <button title="Add User" type="submit" className="sign-in_btn" >
+                    <span>Add User</span>
+                </button>
 
-          <div className="separator">
-          <hr className="line" />
-          <span className="note">Personnel</span>
-          <hr className="line" />
-          </div>
-      </form>
+            </div>
 
-      <AlertDialog
-          open={openUserManagementDialog}
-          title="Confirm action"
-          description="Are you sure you want to add this bike?"
-          onConfirm={handleUserManagementConfirm}
-          onClose={handleUserManagementClose}
-          />
-    </div>
-  );
+            <div className="separator">
+            <hr className="line" />
+            <span className="note">Personnel</span>
+            <hr className="line" />
+            </div>
+        </form>
+
+        <AlertDialog
+            open={openUserManagementDialog}
+            title="Confirm action"
+            description="Are you sure you want to add this bike?"
+            onConfirm={handleUserManagementConfirm}
+            onClose={handleUserManagementClose}
+            />
+        </div>
+    );
 }

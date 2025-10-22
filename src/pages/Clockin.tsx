@@ -266,8 +266,6 @@ export default function Clockin() {
       setOpenClockInDialog(false);
     };
 
-    
-
     const DropBattery = async (e: React.FormEvent) => {
       e.preventDefault();
       if (selectedDropBatteries.length == 0) {

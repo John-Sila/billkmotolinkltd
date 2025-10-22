@@ -1,9 +1,13 @@
+import { useState } from "react";
+import { NavLink } from "react-router-dom";
 import { Link } from "react-router-dom";
 interface SideNavProps {
   onLogout: () => void;
 }
 
 export const TopBarTinyMenu = ({ onLogout }: SideNavProps) => {
+    const [activeLink, setActiveLink] = useState("")
+
     return (
         <div className="tinyMenuContainer" id="tinyMenuContainer" onClick={(e) => {
             const tinyMenuContainer = document.getElementById("tinyMenuContainer");
@@ -28,17 +32,19 @@ export const TopBarTinyMenu = ({ onLogout }: SideNavProps) => {
             <div className="topBarTinyMenu" id="topBarTinyMenu">
                 <ul className="list">
                     <li className="element">
-                        <Link to="/">
+                        <NavLink to="/"
+                        className={({ isActive }) => isActive ? "active-link" : ""}>
                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M240-120q-50 0-85-35t-35-85v-240q0-24 9-46t26-39l240-240q17-18 39.5-26.5T480-840q23 0 45 8.5t40 26.5l30 30-315 315v180h400v-180L536-604l115-114 154 153q17 17 26 39t9 46v240q0 50-35 85t-85 35H240Z"/></svg>
                             <label>Home</label>
-                        </Link>
+                        </NavLink>
                     </li>
 
                     <li className="element">
-                        <Link to="/damage_reports">
+                        <NavLink to="/damage_reports"
+                        className={({ isActive }) => isActive ? "active-link" : ""}>
                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M200-160v-80h64l79-263q8-26 29.5-41.5T420-560h120q26 0 47.5 15.5T617-503l79 263h64v80H200Zm240-480v-200h80v200h-80Zm238 99-57-57 142-141 56 56-141 142Zm42 181v-80h200v80H720ZM282-541 141-683l56-56 142 141-57 57ZM40-360v-80h200v80H40Z"/></svg>
                             <label>Damages</label>
-                        </Link>
+                        </NavLink>
                     </li>
                 </ul>
                 <div className="separator"></div>
@@ -48,23 +54,26 @@ export const TopBarTinyMenu = ({ onLogout }: SideNavProps) => {
 
                 <ul className="list">
                     <li className="element">
-                        <Link to="/clock_in">
+                        <NavLink to="/clock_in"
+                            className={({ isActive }) => isActive ? "active-link" : ""}>
                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227H480v-320q-134 0-227 93t-93 227q0 134 93 227t227 93Z"/></svg>
                             <label>Clock In</label>
-                        </Link>
+                        </NavLink>
                     </li>
 
                     <li className="element delete">
-                        <Link to="/clock_out">
+                        <NavLink to="/clock_out"
+                            className={({ isActive }) => isActive ? "active-link" : ""}>
                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M340-180q-125 0-212.5-87.5T40-480q0-125 87.5-212.5T340-780q125 0 212.5 87.5T640-480q0 125-87.5 212.5T340-180Zm400 20v-488l-44 44-56-56 140-140 140 140-57 56-43-43v487h-80ZM420-340l56-56-96-97v-147h-80v180l120 120Z"/></svg>
                             <label>Clock Out</label>
-                        </Link>
+                        </NavLink>
                     </li>
                     <li className="element delete">
-                        <Link to="/corrections">
+                        <NavLink to="/corrections"
+                            className={({ isActive }) => isActive ? "active-link" : ""}>
                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M340-180q-125 0-212.5-87.5T40-480q0-125 87.5-212.5T340-780q125 0 212.5 87.5T640-480q0 125-87.5 212.5T340-180Zm400 20v-488l-44 44-56-56 140-140 140 140-57 56-43-43v487h-80ZM420-340l56-56-96-97v-147h-80v180l120 120Z"/></svg>
                             <label>Rectify</label>
-                        </Link>
+                        </NavLink>
                     </li>
                 </ul>
                 <div className="separator"></div>
@@ -74,28 +83,53 @@ export const TopBarTinyMenu = ({ onLogout }: SideNavProps) => {
 
                 <ul className="list">
                     <li className="element">
-                        <Link to="/bikes_portal">
+                        <NavLink to="/bikes_portal"
+                        className={({ isActive }) => isActive ? "active-link" : ""}>
                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227H480v-320q-134 0-227 93t-93 227q0 134 93 227t227 93Z"/></svg>
                             <label>Manage Bikes</label>
-                        </Link>
+                        </NavLink>
                     </li>
                     <li className="element delete">
-                        <Link to="/batteries_portal">
+                        <NavLink to="/batteries_portal"
+                        className={({ isActive }) => isActive ? "active-link" : ""}>
                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M340-180q-125 0-212.5-87.5T40-480q0-125 87.5-212.5T340-780q125 0 212.5 87.5T640-480q0 125-87.5 212.5T340-180Zm400 20v-488l-44 44-56-56 140-140 140 140-57 56-43-43v487h-80ZM420-340l56-56-96-97v-147h-80v180l120 120Z"/></svg>
                             <label>Manage Batteries</label>
-                        </Link>
+                        </NavLink>
                     </li>
                     <li className="element delete">
-                        <Link to="/destinations">
+                        <NavLink to="/destinations"
+                        className={({ isActive }) => isActive ? "active-link" : ""}>
                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M340-180q-125 0-212.5-87.5T40-480q0-125 87.5-212.5T340-780q125 0 212.5 87.5T640-480q0 125-87.5 212.5T340-180Zm400 20v-488l-44 44-56-56 140-140 140 140-57 56-43-43v487h-80ZM420-340l56-56-96-97v-147h-80v180l120 120Z"/></svg>
                             <label>Destinations</label>
-                        </Link>
+                        </NavLink>
                     </li>
                     <li className="element delete">
-                        <Link to="/user_management">
+                        <NavLink to="/user_management"
+                        className={({ isActive }) => isActive ? "active-link" : ""}>
                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M340-180q-125 0-212.5-87.5T40-480q0-125 87.5-212.5T340-780q125 0 212.5 87.5T640-480q0 125-87.5 212.5T340-180Zm400 20v-488l-44 44-56-56 140-140 140 140-57 56-43-43v487h-80ZM420-340l56-56-96-97v-147h-80v180l120 120Z"/></svg>
                             <label>Users</label>
-                        </Link>
+                        </NavLink>
+                    </li>
+                    <li className="element delete">
+                        <NavLink to="/require"
+                        className={({ isActive }) => isActive ? "active-link" : ""}>
+                            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M340-180q-125 0-212.5-87.5T40-480q0-125 87.5-212.5T340-780q125 0 212.5 87.5T640-480q0 125-87.5 212.5T340-180Zm400 20v-488l-44 44-56-56 140-140 140 140-57 56-43-43v487h-80ZM420-340l56-56-96-97v-147h-80v180l120 120Z"/></svg>
+                            <label>Require</label>
+                        </NavLink>
+                    </li>
+                    <li className="element delete">
+                        <NavLink to="/daily_reports"
+                            className={({ isActive }) => isActive ? "active-link" : ""}>
+                            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M340-180q-125 0-212.5-87.5T40-480q0-125 87.5-212.5T340-780q125 0 212.5 87.5T640-480q0 125-87.5 212.5T340-180Zm400 20v-488l-44 44-56-56 140-140 140 140-57 56-43-43v487h-80ZM420-340l56-56-96-97v-147h-80v180l120 120Z"/></svg>
+                            <label>Daily Reports</label>
+                        </NavLink>
+                    </li>
+                    <li className="element delete">
+                        <NavLink to="/weekly_reports"
+                        className={({ isActive }) => isActive ? "active-link" : ""}>
+                            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#9A9A9AFF"><path d="M340-180q-125 0-212.5-87.5T40-480q0-125 87.5-212.5T340-780q125 0 212.5 87.5T640-480q0 125-87.5 212.5T340-180Zm400 20v-488l-44 44-56-56 140-140 140 140-57 56-43-43v487h-80ZM420-340l56-56-96-97v-147h-80v180l120 120Z"/></svg>
+                            <label>Weekly Reports</label>
+                        </NavLink>
                     </li>
                 </ul>
 
