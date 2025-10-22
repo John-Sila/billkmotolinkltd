@@ -667,7 +667,7 @@ export default function Corrections() {
         <AlertDialog
           open={openCorrectionsDialog}
           title="Confirm action"
-          description="Are you sure you want to clock in?"
+          description="Are you sure you want to post this correction?"
           onConfirm={handleCorrectionsConfirm}
           onClose={handleCorrectionsClose}
         />

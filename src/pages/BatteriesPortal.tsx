@@ -249,7 +249,7 @@ export default function BatteriesPortal() {
       <AlertDialog
           open={openBatteriesPortalDialog}
           title="Confirm action"
-          description="Are you sure you want to add this bike?"
+          description="Are you sure you want to add this battery?"
           onConfirm={handleBatteriesPortalConfirm}
           onClose={handleBatteriesPortalClose}
           />

@@ -721,7 +721,7 @@ export default function Clockout() {
       <AlertDialog
         open={openClockOutDialog}
         title="Confirm action"
-        description="Are you sure you want to clock in?"
+        description="Are you sure you want to clock out?"
         onConfirm={handleClockOutConfirm}
         onClose={handleClockOutClose}
       />

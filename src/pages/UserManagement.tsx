@@ -346,7 +346,7 @@ export default function UserManagement() {
         <AlertDialog
             open={openUserManagementDialog}
             title="Confirm action"
-            description="Are you sure you want to add this bike?"
+            description="Are you sure you want to add this user?"
             onConfirm={handleUserManagementConfirm}
             onClose={handleUserManagementClose}
             />
