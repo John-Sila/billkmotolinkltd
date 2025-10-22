@@ -13,7 +13,7 @@ import {
 import { fetchUser, type UserData } from "../services/userService";
 import PrimaryLoadingFragment from "../assets/PrimaryLoading";
 import { auth, db } from "../assets/Firebase";
-import { doc, setDoc, getDoc, updateDoc, runTransaction, Timestamp, serverTimestamp} from "firebase/firestore";
+import { doc, setDoc, serverTimestamp} from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
 
 export default function UserManagement() {
@@ -55,7 +55,7 @@ export default function UserManagement() {
         
             setUser(userData);
             setLoading(false);
-            setCurrentEmail(userData?.email)
+            setCurrentEmail(userData?.email ?? null)
         }
     
         loadUser();
@@ -98,14 +98,14 @@ export default function UserManagement() {
         toast.loading("Reauthenticating...");
         try {
             // Step 1: Reauthenticate admin
-            const credential = EmailAuthProvider.credential(admin.email, adminPassword);
+            const credential = EmailAuthProvider.credential(admin.email || "", adminPassword);
             await reauthenticateWithCredential(admin, credential);
             toast.dismiss();
             toast.success("Reauthenticated");
 
             // Step 2: Create new user
             toast.loading("Creating user...");
-            const userCredential = await createUserWithEmailAndPassword(auth, newUserEmail, password);
+            const userCredential = await createUserWithEmailAndPassword(auth, newUserEmail || "", password || "");
             const newUser = userCredential.user;
 
             // Step 3: Write to Firestore
@@ -136,7 +136,7 @@ export default function UserManagement() {
             // Step 4: Restore previous admin session
             toast.loading("Restoring previous session...");
             await signOut(auth);
-            await signInWithEmailAndPassword(auth, admin.email, adminPassword);
+            await signInWithEmailAndPassword(auth, admin.email || "", adminPassword);
             toast.dismiss();
             toast.success("Admin session restored");
 

@@ -141,7 +141,7 @@ export default function Analysis() {
             <div className="chart-container">
                 <ResponsiveContainer width="100%" height={300}>
                 <BarChart
-                    data={chartData}
+                    data={chartData || []}
                     margin={{ top: 20, right: 30, left: 10, bottom: 0 }}
                 >
                     <CartesianGrid strokeDasharray="3 3" />

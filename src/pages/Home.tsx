@@ -5,7 +5,7 @@ import PrimaryLoadingFragment from "../assets/PrimaryLoading";
 import { fetchWeather, type WeatherData } from "../services/weatherService";
 import { formatDateWithSuperscript, getGreeting, parseCurrency } from "../assets/publicFunctions";
 import NoUserFound from "../assets/NoUserFound";
-import toast, { Toaster } from "react-hot-toast";
+import { Toaster } from "react-hot-toast";
 
 
 interface LocationData {
@@ -41,7 +41,7 @@ export default function Home() {
     if (!uid) return;
 
     async function loadUser() {
-      const data = await fetchUser(uid);
+      const data = await fetchUser(uid || "");
       setUser(data);
       setLoading(false);
     }
@@ -153,7 +153,7 @@ export default function Home() {
                       width="50px"
                       height="50px"
                       viewBox="0 0 50 50"
-                      xml:space="preserve"
+                      xmlSpace="preserve"
                     >
                       <image
                         width="50"

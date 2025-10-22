@@ -38,7 +38,7 @@ export default function BatteriesPortal() {
       if (!uid) return;
   
       async function loadUser() {
-        const userData = await fetchUser(uid);
+        const userData = await fetchUser(uid || "");
         const generalData = await fetchGeneralVariables();
   
         setUser(userData);
@@ -220,10 +220,11 @@ export default function BatteriesPortal() {
                             <option value="">Select location</option>
                             {Object.entries(generalData?.destinations ?? {})
                               .map(([key, value]) => (
-                                <option key={key} value={value}>
-                                  {value}
+                                <option key={key} value={value as string}>
+                                  {value as string}
                                 </option>
                               ))}
+
 
                           </select>
                     </td>

@@ -33,9 +33,9 @@ export const TopBarTinyMenu = ({ onLogout }: SideNavProps) => {
         if (!uid) return;
 
         async function loadUser() {
-            const data = await fetchUser(uid);
+            const data = await fetchUser(uid || "");
             setUser(data);
-            setUserRank(data?.userRank)
+            setUserRank(data?.userRank || "")
             setLoading(false);
         }
 

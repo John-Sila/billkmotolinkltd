@@ -69,15 +69,14 @@ export default function BatteriesFragment() {
                 const allBatteries = data.batteries || {};
 
                 // Corrected filter conditions
-                const filtered = Object.values(allBatteries).filter((b: any) => {
+                const filtered = Object.values(allBatteries as Record<string, Battery>).filter((b) => {
                 const isAssigned = b.isAssigned ?? false;
                 const assignedRider = b.assignedRider || "";
-                
-                // Include battery if:
-                // 1. It's not assigned (isAssigned is false), OR
-                // 2. It is assigned AND assigned to the current user
-                return !isAssigned || 
-                        (isAssigned && assignedRider.toLowerCase() === userName.toLowerCase());
+
+                return (
+                    !isAssigned ||
+                    (isAssigned && assignedRider.toLowerCase() === userName.toLowerCase())
+                );
                 });
 
                 setBatteries(filtered);

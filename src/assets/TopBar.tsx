@@ -45,7 +45,7 @@ export default function TopBar() {
       if (!uid) return;
   
       async function loadUser() {
-        const userData = await fetchUser(uid);
+        const userData = await fetchUser(uid || "");
         const generalData = await fetchGeneralVariables();
   
         setUser(userData);

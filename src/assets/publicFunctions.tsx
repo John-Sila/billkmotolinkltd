@@ -1,3 +1,5 @@
+import type { JSX } from "react";
+
 export function parseCurrency(amount: number): string {
   return new Intl.NumberFormat("en-KE", {
     style: "currency",

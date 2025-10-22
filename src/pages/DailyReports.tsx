@@ -104,7 +104,7 @@ export default function DailyReports() {
           <div className="clockout-list">
             {usersData
               .find((u) => u.uid === selectedUser)
-              ?.clockouts.map((entry) => (
+              ?.clockouts.map((entry: any) => (
                 <div
                   key={entry.date}
                   className="dr-card"
@@ -118,7 +118,7 @@ export default function DailyReports() {
                       <ul>
                         {Object.entries(entry.expenses).map(([key, value]) => (
                           <li key={key}>
-                            {key}: {formatCurrency(value)}
+                            {key}: {formatCurrency(value as number)}
                           </li>
                         ))}
                       </ul>

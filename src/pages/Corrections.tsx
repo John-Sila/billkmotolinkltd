@@ -63,7 +63,7 @@ export default function Corrections() {
     if (!uid) return;
 
     async function loadUser() {
-      const userData = await fetchUser(uid);
+      const userData = await fetchUser(uid || "");
       const generalData = await fetchGeneralVariables();
 
       setUser(userData);
@@ -348,7 +348,7 @@ export default function Corrections() {
                     <tr>
                       <td><label className="input_label" htmlFor="acc_target">Date to correct</label></td>
                       <select
-                        value={selectedDate}
+                        value={selectedDate || ""}
                         title="Select a date"
                         className="styled-select"
                         onChange={handleDateChange}
@@ -404,7 +404,7 @@ export default function Corrections() {
                         <input type="number"
                               className="input_field" 
                               placeholder="0"
-                                value={grossIncome}
+                                value={grossIncome || ""}
                                 onChange={(e) =>
                                   setGrossIncome(e.target.value)
                                 }
@@ -421,7 +421,7 @@ export default function Corrections() {
                           className="input_field" 
                           readOnly
                           placeholder="0"
-                          value={commission}
+                          value={commission || ""}
                           onWheel={e => e.currentTarget.blur()}
                           title="Commission" name="commission" id="commission" />
   
@@ -451,7 +451,7 @@ export default function Corrections() {
                         <input type="number"
                           className="input_field" 
                           placeholder="0"
-                            value={prevInAppBalance}
+                            value={prevInAppBalance || ""}
                             onWheel={e => e.currentTarget.blur()}
                             title="Previous In App Balance" name="prev_bal" id="prev_bal"
                             readOnly/>
