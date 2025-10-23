@@ -233,8 +233,8 @@ export default function BatteriesPortal() {
                   </tbody>
               </table>
 
-              <button title="Clock Out" type="submit" className="sign-in_btn" >
-                  <span>Add Bike</span>
+              <button title="Add Battery" type="submit" className="sign-in_btn" >
+                  <span>Add Battery</span>
               </button>
 
           </div>

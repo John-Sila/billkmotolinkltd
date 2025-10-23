@@ -1331,6 +1331,56 @@
   }
 }
 
+.profiles-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100dvw;
+
+  .user-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: .3em 0;
+    border: .2px dotted var(--primary-green);
+    border-radius: 1em;
+    padding: .5em;
+    justify-content: center;
+    height: max-content;
+    max-height: 9em;
+    overflow-y: auto;
+    box-shadow: var(--primary-shadow);
+    margin-bottom: 1em;
+
+    .btn.active{
+      background-color: var(--primary-green);
+      color: whitesmoke;
+      border: none;
+      outline: none;
+    }
+  }
+
+  table{
+    border-collapse: collapse;
+    box-shadow: rgba(17, 12, 46, 0.15) 0px 48px 100px 0px;
+    width: 100dvw;
+    padding: .5em;
+    border-radius: 1em;
+    overflow: hidden;
+
+    td, th{
+      text-align: center;
+    }
+    thead, tfoot{
+      background-color: var(--primary-orange);
+    }
+    tr:nth-child(even) {
+      background-color: var(--table-gray);
+      color: var(--primary-color);
+    }
+  }
+}
+
 .no-user-found {
   display: flex;
   flex-direction: column;

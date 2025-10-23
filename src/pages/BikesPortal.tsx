@@ -143,7 +143,7 @@ export default function BikesPortal() {
                     </tbody>
                 </table>
 
-                <button title="Clock Out" type="submit" className="sign-in_btn" >
+                <button title="Add Bike" type="submit" className="sign-in_btn" >
                     <span>Add Bike</span>
                 </button>
 

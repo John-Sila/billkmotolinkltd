@@ -139,8 +139,8 @@ export default function Destinations() {
                         </tbody>
                     </table>
 
-                    <button title="Clock Out" type="submit" className="sign-in_btn" >
-                        <span>Add Bike</span>
+                    <button title="Add Destination" type="submit" className="sign-in_btn" >
+                        <span>Add Destination</span>
                     </button>
 
                 </div>

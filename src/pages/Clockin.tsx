@@ -791,7 +791,7 @@ export default function Clockin() {
                   </table>
                 </div>
 
-                <button title="Load Battery" type="submit" className="sign-in_btn" >
+                <button title="Swap Battery" type="submit" className="sign-in_btn" >
                   <span>Swap Battery</span>
                 </button>
         
@@ -963,7 +963,7 @@ export default function Clockin() {
                   </table>
                 </div>
 
-                <button title="Load Battery" type="submit" className="sign-in_btn" >
+                <button title="Drop Battery" type="submit" className="sign-in_btn" >
                   <span>Drop Battery</span>
                 </button>
         
