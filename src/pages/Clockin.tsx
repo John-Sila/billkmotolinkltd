@@ -675,7 +675,7 @@ export default function Clockin() {
 
           {/* swap form */}
           {
-            ourBatteriesCount > 0 && freeBatteriesCount > 1 && (
+            ourBatteriesCount > 0 && freeBatteriesCount > 0 && (
               <form className="form_container" onSubmit={SwapBattery}>
                 <div className="logo_container">
                   <img className="logo" src={logo} alt="logo" width={150} height={150} />

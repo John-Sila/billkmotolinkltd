@@ -50,7 +50,7 @@ export default function Profiles() {
       { label: "Sunday Target", key: "sundayTarget", editable: true },
       { label: "Sunday Clocking", key: "isWorkingOnSunday", editable: true },
       { label: "Requirements", key: "requirements", editable: false },
-      { label: "In-App Balance", key: "currentInAppBalance", editable: false },
+      { label: "In-App Balance", key: "currentInAppBalance", editable: true },
     ];
 
     function getFieldType(value: any): "boolean" | "number" | "string" | "map" | "unknown" {
