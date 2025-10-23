@@ -246,7 +246,7 @@ export default function Corrections() {
     
             // 2. Update clockout entry inside user profile
             await updateDoc(userRef, {
-              [`clockouts.${dateKey}`]: {
+              [`clockouts.${selectedDate}`]: {
                 grossIncome: parseFloat(grossIncome || "0"),
                 todaysInAppBalance: parseFloat(todaysInAppBalance),
                 previousInAppBalance: parseFloat(prevInAppBalance?.toString() || "0"),
