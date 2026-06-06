@@ -1,0 +1,60 @@
+name: billkmotolinkltd
+description: "BILLK MOTOLINK LTD."
+publish_to: 'none'
+version: 2.4.4+1
+
+environment:
+  sdk: ^3.9.2
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  flutter_svg: ^2.0.9
+  shared_preferences: ^2.3.2
+  cloud_firestore: ^6.1.0
+  intl: ^0.20.2
+  mobile_scanner: ^7.1.4
+  fluttertoast: ^9.0.0
+  fl_chart: ^1.1.1
+  url_launcher: ^6.3.0
+  path_provider: ^2.1.1
+  flutter_cache_manager: ^3.3.0
+  flutter_local_notifications: ^19.5.0
+  firebase_messaging: ^16.0.4
+  flutter_background_service: ^5.0.1
+  flutter_background_service_android: ^6.3.1
+  flutter_background_service_ios: ^5.0.3
+  background_fetch: ^1.1.0
+  permission_handler: ^12.0.1
+  platform: ^3.1.4
+  device_info_plus: ^10.1.2
+  battery_plus: ^6.0.0
+  connectivity_plus: ^6.0.5
+  add_2_calendar: ^2.2.3
+  cupertino_icons: ^1.0.8
+  http: ^1.6.0
+  package_info_plus: ^9.0.0
+  image_picker: ^1.2.1
+  cloudinary_public: ^0.23.1
+  table_calendar: ^3.1.0
+  pdf: ^3.11.0
+  printing: ^5.13.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  change_app_package_name: ^1.5.0
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.png
+    - assets/kra.png
+    - assets/primary_signature.png
+  fonts:
+    - family: MyFont
+      fonts:
+        - asset: assets/fonts/TT_Chocolates_Regular.otf
+        - asset: assets/fonts/TT_Chocolates_Medium.otf
+          weight: 700
