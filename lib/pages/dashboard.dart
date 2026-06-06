@@ -688,6 +688,7 @@ class _DashboardState extends State<Dashboard> {
         ),
       );
     }
+
     // Safe user data access
     final userData = _userDoc?.data() ?? {};
     final userName = userData['userName']?.toString() ?? 'User';
@@ -1958,46 +1959,173 @@ class _DashboardState extends State<Dashboard> {
   Widget _buildCompactBikeTile(MapEntry<String, dynamic> bikeEntry, ThemeData theme) {
     final bikeInfo = bikeEntry.value as Map<String, dynamic>;
     final isAssigned = bikeInfo['isAssigned'] ?? false;
+    final bikeId = bikeEntry.key;
+    final assignedRider = bikeInfo['assignedRider'] ?? 'None';
     
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: (isAssigned ? Colors.green : Colors.red).withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: (isAssigned ? Colors.green : Colors.red).withValues(alpha: 0.3),
-          width: 1,
+    return InkWell(
+      onTap: () {
+        if (isAssigned) {
+          _showDropBikeDialog(context, bikeId, assignedRider);
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: (isAssigned ? Colors.green : Colors.red).withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: (isAssigned ? Colors.green : Colors.red).withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: isAssigned ? Colors.green : Colors.red,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                bikeId,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+            ),
+            Text(
+              assignedRider,
+              style: TextStyle(
+                fontSize: 13,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: isAssigned ? Colors.green : Colors.red,
-              shape: BoxShape.circle,
+    );
+  }
+    
+  void _showDropBikeDialog(BuildContext context, String bikeId, String riderName) {
+    final localTheme = Theme.of(context);
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          icon: Icon(
+            Icons.bike_scooter,
+            color: localTheme.colorScheme.error,
+            size: 48,
+          ),
+          title: Text(
+            'Drop this bike?',
+            style: localTheme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              bikeEntry.key,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Are you sure you want to unassign',
+                style: localTheme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Bike "$bikeId"',
+                style: localTheme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: localTheme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'from rider "$riderName"?',
+                style: localTheme.textTheme.bodyMedium,
+              ),
+            ],
           ),
-          Text(
-            bikeInfo['assignedRider'] ?? 'None',
-            style: TextStyle(
-              fontSize: 13,
-              color: theme.colorScheme.onSurfaceVariant,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Cancel',
+                style: localTheme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: localTheme.colorScheme.error,
+                backgroundColor: localTheme.colorScheme.errorContainer.withOpacity(0.1),
+              ),
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('general')
+                      .doc('general_variables')
+                      .update({
+                    'bikes.$bikeId.isAssigned': false,
+                    'bikes.$bikeId.assignedRider': 'None',
+                  });
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Bike $bikeId successfully dropped.'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to drop bike: $e'),
+                        backgroundColor: localTheme.colorScheme.error,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.delete_outline,
+                    size: 18,
+                    color: localTheme.colorScheme.error,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Confirm',
+                    style: localTheme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          actionsPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -2093,10 +2221,6 @@ class _DashboardState extends State<Dashboard> {
       ),
     );
   }
-
-
-
-
 
   Widget _buildStatusRow(ThemeData theme, Map<String, dynamic> user, bool isDark) {
     final statuses = [
@@ -2246,7 +2370,6 @@ class _DashboardState extends State<Dashboard> {
     _commissionController.dispose();
     super.dispose();
   }
-
 }
 
 class Totals {

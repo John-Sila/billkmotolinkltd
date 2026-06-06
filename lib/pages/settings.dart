@@ -136,19 +136,125 @@ class _UserSettingsState extends State<UserSettings> {
             Icons.logout,
             'Log Out',
             () {
-              logout();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Logged out successfully'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
+              _showLogoutConfirmationDialog(context);
             },
           ),
+        
         ],
       ),
     );
   }
+
+  void _showLogoutConfirmationDialog(BuildContext context) {
+    final localTheme = Theme.of(context);
+    final colorScheme = localTheme.colorScheme;
+    
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          icon: Icon(
+            Icons.logout,
+            color: colorScheme.error,
+            size: 48,
+          ),
+          title: Text(
+            'Log Out',
+            style: localTheme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to log out?',
+                style: localTheme.textTheme.bodyMedium?.copyWith(
+                  color: localTheme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'You will need to sign in again to access your account and data.',
+                style: localTheme.textTheme.bodySmall?.copyWith(
+                  color: localTheme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: localTheme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: colorScheme.error,
+              ),
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                logout();
+                
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(
+                            Icons.logout,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          Text('Logged out successfully'),
+                        ],
+                      ),
+                      backgroundColor: colorScheme.error,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Log Out',
+                    style: localTheme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          actionsPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        );
+      },
+    );
+  }
+
+
 
   Widget _buildSectionHeader(String title) {
     return Padding(
@@ -225,26 +331,29 @@ class _UserSettingsState extends State<UserSettings> {
     VoidCallback onTap,
   ) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
+    
+    final primaryError = colorScheme.error;
     
     final containerGradient = LinearGradient(
       colors: [
-        Colors.red.withValues(alpha: 0.12),
-        (isDark ? Colors.red.shade900 : Colors.red.shade50).withValues(alpha: 0.8),
-        Colors.red.withValues(alpha: 0.08),
+        primaryError.withValues(alpha: 0.12),
+        primaryError.withValues(alpha: isDark ? 0.3 : 0.08).withValues(alpha: 0.8),
+        primaryError.withValues(alpha: 0.08),
       ],
     );
     
     final iconGradient = RadialGradient(
-      colors: [Colors.red.shade500, Colors.red.shade700],
+      colors: [primaryError.withValues(alpha: 0.8), primaryError.withValues(alpha: 1.0)],
     );
     
     final textGradient = RadialGradient(
-      colors: [Colors.red.shade800, Colors.red.shade600],
+      colors: [primaryError.withValues(alpha: 0.9), primaryError.withValues(alpha: 1.0)],
     );
     
     final arrowGradient = RadialGradient(
-      colors: [Colors.red.shade400, Colors.red.shade600],
+      colors: [primaryError.withValues(alpha: 0.7), primaryError.withValues(alpha: 0.9)],
     );
 
     return Container(
@@ -253,17 +362,17 @@ class _UserSettingsState extends State<UserSettings> {
         gradient: containerGradient,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.red.withValues(alpha: isDark ? 0.5 : 0.35),
+          color: primaryError.withValues(alpha: isDark ? 0.5 : 0.35),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.red.withValues(alpha: isDark ? 0.35 : 0.25),
+            color: primaryError.withValues(alpha: isDark ? 0.35 : 0.25),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
           BoxShadow(
-            color: Colors.red.withValues(alpha: isDark ? 0.2 : 0.12),
+            color: primaryError.withValues(alpha: isDark ? 0.2 : 0.12),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -275,8 +384,8 @@ class _UserSettingsState extends State<UserSettings> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
-          splashColor: Colors.red.withValues(alpha: isDark ? 0.35 : 0.25),
-          highlightColor: Colors.red.withValues(alpha: isDark ? 0.2 : 0.12),
+          splashColor: primaryError.withValues(alpha: isDark ? 0.35 : 0.25),
+          highlightColor: primaryError.withValues(alpha: isDark ? 0.2 : 0.12),
           child: Container(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
             child: Row(
@@ -289,7 +398,7 @@ class _UserSettingsState extends State<UserSettings> {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.red.withValues(alpha: isDark ? 0.6 : 0.5),
+                        color: primaryError.withValues(alpha: isDark ? 0.6 : 0.5),
                         blurRadius: 16,
                         offset: const Offset(0, 4),
                       ),
@@ -349,7 +458,7 @@ class _UserSettingsState extends State<UserSettings> {
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.red.withValues(alpha: isDark ? 0.7 : 0.6),
+                              color: primaryError.withValues(alpha: isDark ? 0.7 : 0.6),
                               blurRadius: 10,
                               offset: const Offset(2, 2),
                             ),
@@ -378,7 +487,5 @@ class _UserSettingsState extends State<UserSettings> {
       ),
     );
   }
-
-
 
 }

@@ -251,29 +251,70 @@ class _ClockOutState extends State<ClockOut> {
   }
 
   void showClockOutConfirmationDialog() {
+    final localTheme = Theme.of(context);
+    
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text("Confirm Clock-Out"),
-          content: Text(
-              "Confirm to end this shift."),
+          icon: Icon(
+            Icons.logout,
+            color: localTheme.colorScheme.primary,
+            size: 48,
+          ),
+          title: Text(
+            'Confirm Clock-Out',
+            style: localTheme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to end this shift?',
+                style: localTheme.textTheme.bodyMedium?.copyWith(
+                  color: localTheme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'This will finalize your mileage, batteries, and shift data.',
+                style: localTheme.textTheme.bodySmall?.copyWith(
+                  color: localTheme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: localTheme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: isClockingOut 
+                  ? localTheme.colorScheme.primaryContainer 
+                  : localTheme.colorScheme.primary,
+                surfaceTintColor: Colors.transparent,
+              ),
               onPressed: isClockingOut
                   ? null
                   : () async {
-                      Navigator.pop(context);
+                      Navigator.pop(dialogContext);
                       setState(() => isClockingOut = true);
-                      await clockOut(); // your async clock-out function
+                      await clockOut();
                       setState(() => isClockingOut = false);
                     },
               child: isClockingOut
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
@@ -281,15 +322,34 @@ class _ClockOutState extends State<ClockOut> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text("Confirm"),
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Confirm',
+                          style: localTheme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ],
+          actionsPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         );
       },
     );
   }
-
-  
+    
   // Helper function
   bool _clockOutMileageValid() {
     final clockOutVal = double.tryParse(clockOutMileageController.text) ?? 0.0;

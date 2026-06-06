@@ -234,30 +234,72 @@ class _Correctionstate extends State<Corrections> {
   }
 
   void showCorrectionsConfirmationDialog() {
+    final localTheme = Theme.of(context);
+    
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text("Confirm Correction"),
-          content: Text(
-              "Confirm to correct and overwrite the current data for this day."),
+          icon: Icon(
+            Icons.edit_note,
+            color: localTheme.colorScheme.primary,
+            size: 48,
+          ),
+          title: Text(
+            'Confirm Correction',
+            style: localTheme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to correct and overwrite the current data for this day?',
+                style: localTheme.textTheme.bodyMedium?.copyWith(
+                  color: localTheme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'This action cannot be undone. All existing data for this day will be replaced.',
+                style: localTheme.textTheme.bodySmall?.copyWith(
+                  color: localTheme.colorScheme.error,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: localTheme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: isClockingOut 
+                  ? localTheme.colorScheme.primaryContainer 
+                  : localTheme.colorScheme.primary,
+                surfaceTintColor: Colors.transparent,
+              ),
               onPressed: isClockingOut
                   ? null
                   : () async {
-                      Navigator.pop(context);
+                      Navigator.pop(dialogContext);
                       setState(() => isClockingOut = true);
-                      await correct(); // your async clock-out function
-                      await fetchInitialData(); // refresh data after clock-out
+                      await correct();
+                      await fetchInitialData();
                       setState(() => isClockingOut = false);
                     },
               child: isClockingOut
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
@@ -265,9 +307,29 @@ class _Correctionstate extends State<Corrections> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text("Confirm"),
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.save_outlined,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Confirm',
+                          style: localTheme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ],
+          actionsPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         );
       },
     );

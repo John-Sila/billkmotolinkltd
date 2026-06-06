@@ -659,29 +659,87 @@ class _ClockInState extends State<ClockIn> {
   }
 
   void showClockInConfirmationDialog() {
+    final localTheme = Theme.of(context);
+    
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text("Confirm Clock-In"),
-          content: Text(
-              "Confirm clock-in with $selectedBike, batteries: ${scannedBatteries.join(', ')} and a mileage of ${mileageController.text.trim()} km."),
+          icon: Icon(
+            Icons.access_time,
+            color: localTheme.colorScheme.primary,
+            size: 48,
+          ),
+          title: Text(
+            'Confirm Clock-In',
+            style: localTheme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Review your details before clocking in:',
+                style: localTheme.textTheme.bodyMedium?.copyWith(
+                  color: localTheme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildInfoRow(
+                localTheme,
+                icon: Icons.bike_scooter,
+                label: 'Bike',
+                value: selectedBike ?? 'None selected',
+              ),
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                localTheme,
+                icon: Icons.battery_full,
+                label: 'Batteries',
+                value: scannedBatteries.isNotEmpty 
+                  ? scannedBatteries.join(', ') 
+                  : 'None scanned',
+                isWarning: scannedBatteries.isEmpty,
+              ),
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                localTheme,
+                icon: Icons.speed,
+                label: 'Mileage',
+                value: '${mileageController.text.trim()} km',
+              ),
+            ],
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: localTheme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: isClockingIn 
+                  ? localTheme.colorScheme.primaryContainer 
+                  : localTheme.colorScheme.primary,
+                surfaceTintColor: Colors.transparent,
+              ),
               onPressed: isClockingIn
                   ? null
                   : () async {
-                      Navigator.pop(context);
+                      Navigator.pop(dialogContext);
                       setState(() => isClockingIn = true);
-                      await clockIn(); // your async clock-in function
+                      await clockIn();
                       setState(() => isClockingIn = false);
                     },
               child: isClockingIn
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
@@ -689,14 +747,79 @@ class _ClockInState extends State<ClockIn> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text("Confirm"),
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Confirm',
+                          style: localTheme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ],
+          actionsPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         );
       },
     );
   }
-  
+
+  Widget _buildInfoRow(
+    ThemeData theme, {
+    required IconData icon,
+    required String label,
+    required String value,
+    bool isWarning = false,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: isWarning 
+            ? theme.colorScheme.error 
+            : theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          ':',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: isWarning 
+              ? theme.colorScheme.error 
+              : theme.colorScheme.primary,
+          ),
+        ),
+      ],
+    );
+  }
+
   String resolveClockInText({
     required bool isOnline,
     required bool isClockedIn,

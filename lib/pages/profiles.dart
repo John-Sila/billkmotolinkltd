@@ -394,7 +394,7 @@ class _ProfilesState extends State<Profiles> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    "PRO",
+                                    "ADMIN",
                                     style: theme.textTheme.labelSmall?.copyWith(
                                       color: theme.colorScheme.onTertiary,
                                       fontWeight: FontWeight.bold,
