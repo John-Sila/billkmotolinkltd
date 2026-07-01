@@ -21,7 +21,6 @@ class _RiderDailyStatisticsState extends State<RiderDailyStatistics> {
   final Map<String, String> fieldLabels = {
     'grossIncome': 'Gross Income',
     'netIncome': 'Net Income',
-    'mileageDifference': 'Mileage Coverage',
     'todaysInAppBalance': "Today's In-App Balance",
     'previousInAppBalance': 'Previous In-App Balance',
     'timeElapsed': 'Time Elapsed',
@@ -31,7 +30,6 @@ class _RiderDailyStatisticsState extends State<RiderDailyStatistics> {
   final List<String> displayOrder = [
     'grossIncome',
     'netIncome',
-    'mileageDifference',
     'todaysInAppBalance',
     'previousInAppBalance',
     'timeElapsed',
@@ -108,13 +106,6 @@ class _RiderDailyStatisticsState extends State<RiderDailyStatistics> {
     // Guard clause: Bail out if NaN or Infinity
     if (numValue == null || numValue.isNaN || numValue.isInfinite) {
       return value; // return raw string safely
-    }
-
-    // KM fields
-    if (fieldKey == 'clockinMileage' ||
-        fieldKey == 'clockoutMileage' ||
-        fieldKey == 'mileageDifference') {
-      return '${_formatNumberWithCommas(numValue.toInt())} KM';
     }
 
     // Currency fields

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
@@ -36,6 +37,7 @@ class _DashboardState extends State<Dashboard> {
 
   bool _showMemoOverlay = false;
   Map<String, dynamic>? _currentMemo;
+  Timer? _expiredEventsTimer;
 
 
 
@@ -43,6 +45,15 @@ class _DashboardState extends State<Dashboard> {
   void initState() {
     super.initState();
     _loadAll();
+
+    // Prompt, automatic cleanup of expired events: runs immediately and
+    // then on a recurring timer so events disappear as soon as they
+    // expire, without needing a manual refresh or full dashboard reload.
+    _cleanupExpiredEvents();
+    _expiredEventsTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _cleanupExpiredEvents(),
+    );
 
     // Listen to auth state changes
     _auth.authStateChanges().listen((user) {
@@ -91,6 +102,46 @@ class _DashboardState extends State<Dashboard> {
     }
   }
 
+  /// Lightweight, read-mostly cleanup that only touches the `events`
+  /// collection: deletes anything whose `event_time` has already
+  /// passed and refreshes the visible list. Safe to call frequently
+  /// (e.g. from a periodic timer) since it does not touch users,
+  /// polls, memos, or any other collection, and never writes new
+  /// documents — it only deletes documents that are already expired.
+  Future<void> _cleanupExpiredEvents() async {
+    if (!mounted) return;
+    try {
+      final now = DateTime.now();
+      final eventsSnap = await FirebaseFirestore.instance
+          .collection('events')
+          .orderBy('event_time', descending: true)
+          .get();
+
+      final validEvents = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
+      for (final doc in eventsSnap.docs) {
+        final data = doc.data();
+        final ts = data['event_time'] as Timestamp?;
+        if (ts == null) continue;
+
+        if (ts.toDate().isBefore(now)) {
+          await doc.reference.delete().catchError((e) {});
+        } else {
+          validEvents.add(doc);
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _events = validEvents;
+        });
+      }
+    } catch (e) {
+      // Silent: this is a background convenience cleanup, the full
+      // _loadAll() call already surfaces errors to the user.
+    }
+  }
+
   Future<void> _loadAll() async {
     if (!mounted) return;
 
@@ -119,7 +170,6 @@ class _DashboardState extends State<Dashboard> {
       }
 
       final now = DateTime.now();
-      final oneWeekAgo = now.subtract(const Duration(days: 7));
 
       final eventsSnap = await FirebaseFirestore.instance
           .collection('events')
@@ -134,7 +184,8 @@ class _DashboardState extends State<Dashboard> {
 
         if (ts == null) continue;
 
-        if (ts.toDate().isBefore(oneWeekAgo)) {
+        if (ts.toDate().isBefore(now)) {
+          // Expired: remove promptly instead of lingering for a week.
           await doc.reference.delete().catchError((e) {});
         } else {
           validEvents.add(doc);
@@ -2366,6 +2417,7 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   void dispose() {
+    _expiredEventsTimer?.cancel();
     _notificationService.dispose();
     _commissionController.dispose();
     super.dispose();

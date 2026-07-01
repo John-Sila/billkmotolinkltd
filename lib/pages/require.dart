@@ -405,21 +405,67 @@ class _RequirementsState extends State<Requirements> {
                           // Show confirmation dialog
                           final confirmed = await showDialog<bool>(
                             context: context,
-                            builder: (_) => AlertDialog(
-                              title: const Text('Confirm Requirement'),
-                              content: const Text(
-                                  'Are you sure you want to create this requirement?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: const Text('Cancel'),
+                            builder: (dialogContext) {
+                              final localTheme = Theme.of(dialogContext);
+                              final colorScheme = localTheme.colorScheme;
+                              
+                              return AlertDialog(
+                                icon: Icon(
+                                  Icons.add_task,
+                                  color: colorScheme.primary,
+                                  size: 48,
                                 ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: const Text('Continue'),
+                                title: Text(
+                                  'Confirm Requirement',
+                                  style: localTheme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ],
-                            ),
+                                content: Text(
+                                  'Are you sure you want to create this requirement?',
+                                  style: localTheme.textTheme.bodyMedium,
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dialogContext, false),
+                                    child: Text(
+                                      'Cancel',
+                                      style: localTheme.textTheme.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      backgroundColor: colorScheme.primary,
+                                    ),
+                                    onPressed: () => Navigator.pop(dialogContext, true),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle_outline,
+                                          size: 18,
+                                          color: Colors.white,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Continue',
+                                          style: localTheme.textTheme.bodyMedium?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                actionsPadding: const EdgeInsets.all(16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              );
+                            },
                           );
 
                           if (confirmed != true) return;
@@ -434,32 +480,46 @@ class _RequirementsState extends State<Requirements> {
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[600],
+                    backgroundColor: isPosting
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 0,
-                    shadowColor: Colors.blue[200],
+                    surfaceTintColor: Colors.transparent,
                   ),
                   child: isPosting
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            strokeWidth: 2.5,
-                          ),
-                        )
-                      : const Text(
-                          'Create Requirement',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      ? SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          strokeWidth: 2.5,
                         ),
+                      )
+                      : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.add_task,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Create Requirement',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                 ),
               ),
+
             ],
           ),
         ),

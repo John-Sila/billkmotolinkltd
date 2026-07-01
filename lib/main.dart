@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:billkmotolinkltd/pages/absenteesm.dart';
 import 'package:billkmotolinkltd/pages/queued_damages.dart';
 import 'package:billkmotolinkltd/pages/report_damages.dart';
 import 'package:billkmotolinkltd/services/toast_service.dart';
@@ -13,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'services/firebase_options.dart';
+import 'theme/app_theme.dart';
 
 // Pages & Services
 import 'pages/dashboard.dart';
@@ -92,41 +94,9 @@ class BillkMotolinkApp extends StatelessWidget {
     );
   }
 
-  ThemeData _lightTheme() {
-    return ThemeData(
-      brightness: Brightness.light,
-      primarySwatch: Colors.teal,
-      fontFamily: 'MyFont',
-      scaffoldBackgroundColor: Colors.grey[100],
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.grey[100],
-        elevation: 0.5,
-        foregroundColor: Colors.black87,
-      ),
-      drawerTheme: const DrawerThemeData(backgroundColor: Colors.white),
-      listTileTheme: const ListTileThemeData(iconColor: Colors.black87),
-    );
-  }
+  ThemeData _lightTheme() => AppTheme.light();
 
-  ThemeData _darkTheme() {
-    return ThemeData(
-      brightness: Brightness.dark,
-      primarySwatch: Colors.teal,
-      fontFamily: 'MyFont',
-      scaffoldBackgroundColor: const Color(0xFF121212),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1E1E1E),
-        elevation: 0.5,
-        foregroundColor: Colors.white,
-      ),
-      drawerTheme: const DrawerThemeData(backgroundColor: Color(0xFF1E1E1E)),
-      listTileTheme: const ListTileThemeData(iconColor: Colors.white70),
-      colorScheme: const ColorScheme.dark(
-        primary: Colors.teal,
-        secondary: Colors.tealAccent,
-      ),
-    );
-  }
+  ThemeData _darkTheme() => AppTheme.dark();
 }
 
 class AuthGate extends StatelessWidget {
@@ -177,29 +147,30 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
   StreamSubscription<DocumentSnapshot>? _userActiveListener;
 
   final List<Widget> _pages = [
-    Dashboard(),
-    ClockIn(),
-    SwapBatteries(),
-    ChargeBatteries(),
-    ReportDamages(uid: FirebaseAuth.instance.currentUser!.uid),
-    ClockOut(),
-    Corrections(),
-    Batteries(uid: FirebaseAuth.instance.currentUser!.uid),
-    Polls(),
-    CreateBudget(),
-    Requirements(),
-    AssetManager(),
-    UserManager(),
-    Profiles(),
-    CreatePoll(),
-    ActivityScheduler(),
-    AddToCalendar(),
-    Reports(),
-    QueuedDamages(),
-    CreateMemo(),
-    CreateAndManageStore(),
-    Devices(),
-    UserSettings(),
+    Dashboard(), // 0
+    ClockIn(), // 1
+    SwapBatteries(), // 2
+    ChargeBatteries(), // 3
+    ReportDamages(uid: FirebaseAuth.instance.currentUser!.uid), // 4
+    ClockOut(), // 5
+    Corrections(), // 6
+    Batteries(uid: FirebaseAuth.instance.currentUser!.uid), // 7
+    Polls(), // 8
+    CreateBudget(), // 9
+    Requirements(), // 10
+    AssetManager(), // 11
+    UserManager(), // 12
+    Profiles(), // 13
+    CreatePoll(), // 14
+    ActivityScheduler(), // 15
+    AddToCalendar(), // 16
+    Reports(), // 17
+    // Absenteeism(), // 18
+    QueuedDamages(), // 18
+    CreateMemo(), // 19
+    CreateAndManageStore(), // 20
+    Devices(), // 21
+    UserSettings(), // 22
   ];
 
   final List<String> _titles = const [
@@ -221,6 +192,7 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
     'Activity Scheduler',
     'Add to Calendar',
     'Reports',
+    // 'Absenteesm',
     'Queued Damages',
     'Memo',
     'Warehouse',
@@ -231,7 +203,7 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
   final Map<String, List<int>> _rolePermissions = {
     'Staff': [0],
     'Rider': [0, 1, 2, 3, 4, 5, 6, 7, 8, 22],
-    'Manager': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22],
+    'Manager': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21],
     'Systems, IT': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
     'Technician': [0, 18, 22],
     'Store Keeper': [0, 20, 22],
@@ -1030,6 +1002,7 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
       case 15: return Icons.timer;
       case 16: return Icons.calendar_month_rounded;
       case 17: return Icons.bar_chart_rounded;
+      // case 18: return Icons.person_off;
       case 18: return Icons.precision_manufacturing_rounded;
       case 19: return Icons.support_agent_rounded;
       case 20: return Icons.warehouse_rounded;

@@ -289,17 +289,15 @@ class _Correctionstate extends State<Corrections> {
                   : localTheme.colorScheme.primary,
                 surfaceTintColor: Colors.transparent,
               ),
+              // Use the variable to freeze the button while processing
               onPressed: isClockingOut
                   ? null
                   : () async {
-                      Navigator.pop(dialogContext);
-                      setState(() => isClockingOut = true);
-                      await correct();
-                      await fetchInitialData();
-                      setState(() => isClockingOut = false);
+                      // Let the function safely handle state updates and pops
+                      await correct(dialogContext);
                     },
               child: isClockingOut
-                  ? SizedBox(
+                  ? const SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
@@ -310,7 +308,7 @@ class _Correctionstate extends State<Corrections> {
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.save_outlined,
                           size: 18,
                           color: Colors.white,
@@ -335,10 +333,22 @@ class _Correctionstate extends State<Corrections> {
     );
   }
 
-  Future<void> correct() async {
+  Future<void> correct(BuildContext dialogContext) async {
+    // 1. Guard check BEFORE mutating processing states or dismissing UI
     if (!canCorrect) {
       ToastService.warning("Complete all required fields");
       return;
+    }
+
+    if (isClockingOut) return;
+
+    // 2. Set loading state and close dialog safely
+    setState(() {
+      isClockingOut = true;
+    });
+
+    if (Navigator.canPop(dialogContext)) {
+      Navigator.pop(dialogContext);
     }
 
     try {
@@ -347,44 +357,39 @@ class _Correctionstate extends State<Corrections> {
 
       final fs = FirebaseFirestore.instance;
       final userRef = fs.collection('users').doc(uid);
-      final deviationsRef = fs.collection('deviations')
-          .doc(weekRange);
+      final deviationsRef = fs.collection('deviations').doc(weekRange);
 
-      // --- PULL USER PROFILE FIRST ---
       final userSnap = await userRef.get();
       if (!userSnap.exists) {
         ToastService.error("User not found");
         return;
       }
+      
       final userName = userSnap.get('userName');
       final pendingAmountOld = userSnap.get('pendingAmount') ?? 0.0;
       final prevInApp = double.parse(prevIABController.text);
       final todaysIAB = double.parse(todaysIABController.text);
 
-      // expenses
+      // Expenses compilation
       Map<String, dynamic> expenseData = {};
       expenseControllers.forEach((key, ctrl) {
-        // Skip 'Other' when processing standard checkboxes
         if (expensesChecked[key]! && key != 'Other') {
           expenseData[key] = double.parse(ctrl.text);
         }
       });
 
-      // Handle 'Other' separately - ONLY if checked and has description
       if (expensesChecked['Other']! && otherExpenseController.text.trim().isNotEmpty) {
         final description = otherExpenseController.text.trim();
         final value = double.parse(expenseControllers['Other']!.text);
-        expenseData[description] = value; // Only custom description as key
+        expenseData[description] = value;
       }
 
-      // get net
       final gross = double.parse(double.parse(grossIncomeController.text).toStringAsFixed(2));
-      final commission = commissionPercentage; // already fetched on load
+      final commission = commissionPercentage;
       final netIncome = double.parse((gross * (1 - commission)
           - (todaysIAB - prevInApp)
           - expenseData.values.whereType<num>().fold(0.0, (s, v) => s + v)).toStringAsFixed(2));
 
-      // get the relevant data we need to update user profile (1 of 2)
       final clockoutData = {
         "grossIncome": gross,
         "todaysInAppBalance": todaysIAB,
@@ -400,11 +405,8 @@ class _Correctionstate extends State<Corrections> {
       };
 
       final monthName = DateFormat("MMMM").format(now);
-      final notificationId =
-        DateTime.now().millisecondsSinceEpoch.toString();
+      final notificationId = DateTime.now().millisecondsSinceEpoch.toString();
         
-      // update user profile (1 of 2)
-      // we won't delete fields like in clockouts cos maybe we are correcting a past month
       await userRef.update({
         "clockouts.$selectedDate": clockoutData,
         "pendingAmount": double.parse((pendingAmountOld + netIncome).toStringAsFixed(2)),
@@ -418,7 +420,6 @@ class _Correctionstate extends State<Corrections> {
         "numberOfNotifications": FieldValue.increment(1),
       });
 
-      // deviation (2 of 2)
       final deviationData = {
         "grossIncome": gross,
         "netIncome": netIncome,
@@ -439,12 +440,23 @@ class _Correctionstate extends State<Corrections> {
         netIncome: netIncome,
         expenseData: expenseData,
       );
+
+      // Refresh data after successful correction runs
+      await fetchInitialData();
+
     } on FirebaseException catch (e) {
       _showRetryDialog("Firestore error: ${e.code} - ${e.message}");
     } catch (e, stack) {
       debugPrint("Unexpected error: $e");
       debugPrint("Stacktrace: $stack");
       _showRetryDialog("Unexpected error occurred: date=$selectedDate, weekRange=$weekRange, dayOfWeek=$dayOfWeek. Please try again.");
+    } finally {
+      // 3. This block ALWAYS fires, ensuring your UI state variable is unlocked 
+      if (mounted) {
+        setState(() {
+          isClockingOut = false;
+        });
+      }
     }
   }
 
@@ -463,7 +475,6 @@ class _Correctionstate extends State<Corrections> {
     final generalRef = fs
         .collection('general')
         .doc('general_variables');
-
     try {
       final snap = await generalRef.get();
       final data = Map<String, dynamic>.from(snap.data() ?? {});
@@ -516,7 +527,6 @@ class _Correctionstate extends State<Corrections> {
     }
   }
   
-
   void _showRetryDialog(String message) {
     showDialog(
       context: context,
@@ -651,7 +661,7 @@ class _Correctionstate extends State<Corrections> {
         'requirements.$timestampKeyToDelete': FieldValue.delete(),
       });
 
-      ToastService.success("Requirement for $targetDate deleted successfully");
+      ToastService.success("$targetDate cleared.");
       grossIncomeController.clear();
       todaysIABController.clear();
       await fetchInitialData(); // refresh UI
@@ -952,7 +962,6 @@ class _Correctionstate extends State<Corrections> {
 
       );
   }
-
 }
 
 Widget _buildTextField({

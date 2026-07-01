@@ -1,5 +1,6 @@
 import 'package:billkmotolinkltd/pages/reports/non_variable_docs.dart';
 import 'package:billkmotolinkltd/pages/reports/wage_evaluator.dart';
+import 'package:billkmotolinkltd/pages/reports/absenteeism.dart';
 import 'package:flutter/material.dart';
 import 'package:billkmotolinkltd/pages/reports/this_week_as_is.dart';
 import 'package:billkmotolinkltd/pages/reports/general_as_is_state.dart';
@@ -101,6 +102,22 @@ class Reports extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const GeneralStateReport()),
+              );
+            },
+          ),
+        ),
+
+        // Absenteeism
+        Card(
+          elevation: 2,
+          child: ListTile(
+            leading: const Icon(Icons.event_busy_rounded, color: Colors.teal),
+            title: const Text('Absenteeism'),
+            subtitle: const Text('See which riders clocked out each day, by week.'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const Absenteeism()),
               );
             },
           ),

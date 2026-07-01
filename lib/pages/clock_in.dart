@@ -71,7 +71,6 @@ class _ClockInState extends State<ClockIn> {
   List<String> scannedBatteries = [];      // Stores battery names
   List<String> scannedBatteryCodes = [];   // Stores cleaned QR codes
   static const int maxScans = 2;
-  final TextEditingController mileageController = TextEditingController();
   bool isClockingIn = false;
 
   bool? isClockedIn;
@@ -83,6 +82,8 @@ class _ClockInState extends State<ClockIn> {
   bool? _isOnline;
   bool isLoading = true;
   late final Future<_AssignmentResult> _assignmentFuture;
+  late Future<Map<String, dynamic>> _bikesDisplayFuture;
+  bool _assignmentSideEffectsRan = false;
 
 
   final _firestore = FirebaseFirestore.instance;
@@ -131,6 +132,7 @@ class _ClockInState extends State<ClockIn> {
   @override
   void initState() {
     super.initState();
+    _bikesDisplayFuture = fetchBikes();
     final String userUid = FirebaseAuth.instance.currentUser?.uid ?? "";
     _assignmentFuture = _loadAssignmentStatus(currentUserUid: userUid);
 
@@ -146,10 +148,6 @@ class _ClockInState extends State<ClockIn> {
 
     _updateTime();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
- 
-    mileageController.addListener(() {
-      setState(() {}); // rebuild button when text changes
-    });
 
     checkClockInStatus();
     checkIsOnline();
@@ -251,7 +249,6 @@ class _ClockInState extends State<ClockIn> {
   @override
   void dispose() {
     _timer.cancel();
-    mileageController.dispose(); // only this controller exists here
     super.dispose();
   }
 
@@ -259,6 +256,7 @@ class _ClockInState extends State<ClockIn> {
     final data = await fetchBikes();
     setState(() {
       bikes = Map<String, dynamic>.from(data); // deep copy
+      _bikesDisplayFuture = Future.value(bikes);
 
       // Only unassigned bikes for the dropdown
       bikeNamesForDropdown = bikes.keys.toList();
@@ -374,8 +372,6 @@ class _ClockInState extends State<ClockIn> {
 
 
   Future<void> clockIn() async {
-    final mileageText = mileageController.text.trim();
-
     if (selectedBike == null) {
       ToastService.error("Select a bike");
       return;
@@ -383,18 +379,6 @@ class _ClockInState extends State<ClockIn> {
 
     if (scannedBatteries.isEmpty) {
       ToastService.error("Scan at least one battery");
-      return;
-    }
-
-    if (mileageText.isEmpty) {
-      ToastService.error("Enter mileage");
-      return;
-    }
-
-    final int? parsedMileage = int.tryParse(mileageText);
-
-    if (parsedMileage == null) {
-      ToastService.error("Mileage must be a valid whole number");
       return;
     }
 
@@ -421,15 +405,9 @@ class _ClockInState extends State<ClockIn> {
       final notificationId =
           DateTime.now().millisecondsSinceEpoch.toString();
 
-      // Optional debugging for this issue
-      debugPrint(
-        "ClockIn -> User: $userName, Mileage Text: '$mileageText', Parsed: $parsedMileage",
-      );
-
       await userDocRef.update({
         'currentBike': selectedBike,
         'clockInTime': now,
-        'clockinMileage': parsedMileage, // guaranteed non-null
         'isClockedIn': true,
         'notifications.$notificationId': {
           'isRead': false,
@@ -512,7 +490,6 @@ class _ClockInState extends State<ClockIn> {
       });
 
       resetScans();
-      mileageController.clear();
     } catch (e, stackTrace) {
       debugPrint("ClockIn Error: $e");
       debugPrint(stackTrace.toString());
@@ -539,15 +516,28 @@ class _ClockInState extends State<ClockIn> {
   }
 
   Future<List<QueryDocumentSnapshot>> _fetchUnresolvedDamages(String bikeId) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('damagesReports')
-        .doc(bikeId)
-        .collection('items')
-        .where('resolved', isEqualTo: true)
-        .where('confirmed', isEqualTo: false)
-        .get();
+    try {
+      setState(() {
+        isClockingIn = true;
+      });
+      final snapshot = await FirebaseFirestore.instance
+          .collection('damagesReports')
+          .doc(bikeId)
+          .collection('items')
+          .where('resolved', isEqualTo: false)
+          .where('confirmed', isEqualTo: false)
+          .get();
 
-    return snapshot.docs;
+      return snapshot.docs;
+    } catch (e) {
+      ToastService.error("Failed to check damages: $e");
+      return [];
+    }
+    finally {
+      setState(() {
+        isClockingIn = false;
+      });
+    }
   }
 
   void showClockInDialog() async {
@@ -703,13 +693,6 @@ class _ClockInState extends State<ClockIn> {
                   : 'None scanned',
                 isWarning: scannedBatteries.isEmpty,
               ),
-              const SizedBox(height: 8),
-              _buildInfoRow(
-                localTheme,
-                icon: Icons.speed,
-                label: 'Mileage',
-                value: '${mileageController.text.trim()} km',
-              ),
             ],
           ),
           actions: [
@@ -733,13 +716,15 @@ class _ClockInState extends State<ClockIn> {
               onPressed: isClockingIn
                   ? null
                   : () async {
+                      // 1. Close the dialog immediately
                       Navigator.pop(dialogContext);
-                      setState(() => isClockingIn = true);
+                      
+                      // 2. Trigger the primary logging execution flow 
+                      // (It handles its own state updates internally)
                       await clockIn();
-                      setState(() => isClockingIn = false);
                     },
               child: isClockingIn
-                  ? SizedBox(
+                  ? const SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
@@ -750,7 +735,7 @@ class _ClockInState extends State<ClockIn> {
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.check_circle_outline,
                           size: 18,
                           color: Colors.white,
@@ -845,7 +830,7 @@ class _ClockInState extends State<ClockIn> {
 
     return Scaffold(
       body: FutureBuilder<Map<String, dynamic>>(
-        future: fetchBikes(),
+        future: _bikesDisplayFuture,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -1132,19 +1117,7 @@ class _ClockInState extends State<ClockIn> {
                     }).toList(),
                   ),
 
-                const SizedBox(height: 20),
-
-                _buildTextField(
-                  enabled: true,
-                  controller: mileageController,
-                  label: 'Clock-In Mileage',
-                  hint: '',
-                  onChanged: (_) => setState(() {}),
-                  keyboardType: TextInputType.number,
-                  icon: Icons.history,
-                  validator: (v) => v == null || v.isEmpty ? 'Enter mileage' : null,
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
 
                 // Fixed height so content never “jumps”
                 ConstrainedBox(
@@ -1162,8 +1135,19 @@ class _ClockInState extends State<ClockIn> {
                       final freeAssignment = result.freeAssignment;
                       final assignedItems = result.assignedItems;
 
+                      if (!_assignmentSideEffectsRan) {
+                        _assignmentSideEffectsRan = true;
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          if (freeAssignment) {
+                            loadBikes();
+                          } else {
+                            loadAssignedBikesFromStore(userName: userName);
+                          }
+                        });
+                      }
+
                       if (freeAssignment) {
-                        loadBikes();
                         return Container(
                           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                           decoration: BoxDecoration(
@@ -1189,8 +1173,6 @@ class _ClockInState extends State<ClockIn> {
                             ],
                           ),
                         );
-                      } else {
-                        loadAssignedBikesFromStore(userName: userName);
                       }
 
                       if (assignedItems.isEmpty) {
@@ -1254,7 +1236,6 @@ class _ClockInState extends State<ClockIn> {
                   child: ElevatedButton(
                     onPressed: (selectedBike != null &&
                             scannedBatteries.isNotEmpty &&
-                            mileageController.text.trim().isNotEmpty &&
                             !isClockingIn &&
                             (!isSunday || isWorkingOnSunday == true) &&
                             isVerified == true)

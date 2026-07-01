@@ -40,8 +40,6 @@ class _ClockOutState extends State<ClockOut> {
   final TextEditingController grossIncomeController = TextEditingController();
   final TextEditingController todaysIABController = TextEditingController();
   final TextEditingController prevIABController = TextEditingController();
-  final TextEditingController clockInMileageController = TextEditingController();
-  final TextEditingController clockOutMileageController = TextEditingController();
   final TextEditingController otherExpenseController = TextEditingController();
 
   Map<String, bool> expensesChecked = {
@@ -105,8 +103,6 @@ class _ClockOutState extends State<ClockOut> {
     grossIncomeController.addListener(_updateState);
     todaysIABController.addListener(_updateState);
     prevIABController.addListener(_updateState);
-    clockInMileageController.addListener(_updateState);
-    clockOutMileageController.addListener(_updateState);
     expenseControllers.forEach((key, ctrl) => ctrl.addListener(_updateState));
     otherExpenseController.addListener(_updateState);
   }
@@ -118,8 +114,6 @@ class _ClockOutState extends State<ClockOut> {
     grossIncomeController.dispose();
     todaysIABController.dispose();
     prevIABController.dispose();
-    clockInMileageController.dispose();
-    clockOutMileageController.dispose();
     otherExpenseController.dispose();
     expenseControllers.forEach((key, ctrl) => ctrl.dispose());
     super.dispose();
@@ -153,9 +147,6 @@ class _ClockOutState extends State<ClockOut> {
       }
 
       userName = userData['userName'] ?? "User";
-
-      clockInMileageController.text =
-          ((userData['clockinMileage'] ?? 0) as num).toDouble().toString();
 
       // Fetch commission
       final generalDoc =
@@ -214,8 +205,6 @@ class _ClockOutState extends State<ClockOut> {
     if (grossIncomeController.text.isEmpty ||
         todaysIABController.text.isEmpty ||
         prevIABController.text.isEmpty ||
-        clockInMileageController.text.isEmpty ||
-        clockOutMileageController.text.isEmpty ||
         selectedDestination == null) {
       return false;
     }
@@ -280,7 +269,7 @@ class _ClockOutState extends State<ClockOut> {
               ),
               const SizedBox(height: 12),
               Text(
-                'This will finalize your mileage, batteries, and shift data.',
+                'This will finalize your batteries and shift data.',
                 style: localTheme.textTheme.bodySmall?.copyWith(
                   color: localTheme.colorScheme.onSurfaceVariant,
                 ),
@@ -308,13 +297,11 @@ class _ClockOutState extends State<ClockOut> {
               onPressed: isClockingOut
                   ? null
                   : () async {
-                      Navigator.pop(dialogContext);
-                      setState(() => isClockingOut = true);
-                      await clockOut();
-                      setState(() => isClockingOut = false);
+                      // Let clockOut manage state mutations safely
+                      await clockOut(dialogContext);
                     },
               child: isClockingOut
-                  ? SizedBox(
+                  ? const SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
@@ -325,7 +312,7 @@ class _ClockOutState extends State<ClockOut> {
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.check_circle_outline,
                           size: 18,
                           color: Colors.white,
@@ -349,12 +336,239 @@ class _ClockOutState extends State<ClockOut> {
       },
     );
   }
-    
-  // Helper function
-  bool _clockOutMileageValid() {
-    final clockOutVal = double.tryParse(clockOutMileageController.text) ?? 0.0;
-    final clockInVal = double.tryParse(clockInMileageController.text) ?? 0.0;
-    return clockOutVal >= clockInVal;
+
+  Future<void> clockOut(BuildContext dialogContext) async {
+    // 1. First UI Guard Check
+    if (!canClockOut) {
+      Fluttertoast.showToast(msg: "Complete all required fields");
+      return;
+    }
+
+    if (isClockingOut) return;
+
+    // 2. Safe State Lock Setup
+    setState(() {
+      isClockingOut = true;
+    });
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final now = DateTime.now();
+
+      final fs = FirebaseFirestore.instance;
+      final userRef = fs.collection('users').doc(uid);
+      final batteriesRef = fs.collection('batteries');
+      final bikesRef = fs.collection('general').doc('general_variables');
+      final weekLabel = getWeekLabel(now);
+      final deviationsRef = fs.collection('deviations').doc(weekLabel);
+
+      // Fetch user details for validation checks
+      final userSnap = await userRef.get();
+      if (!userSnap.exists) {
+        Fluttertoast.showToast(msg: "User not found");
+        return; 
+      }
+      
+      final userName = userSnap.get('userName');
+      final pendingAmountOld = userSnap.get('pendingAmount') ?? 0.0;
+      final prevInApp = double.parse(prevIABController.text);
+      final todaysIAB = double.parse(todaysIABController.text);
+      final selectedLoc = selectedDestination;
+
+      // 4. ALL VALIDATIONS PASSED: Dismiss the dialog safely now
+      if (Navigator.canPop(dialogContext)) {
+        Navigator.pop(dialogContext);
+      }
+
+      // Expense compilation
+      Map<String, dynamic> expenseData = {};
+      expenseControllers.forEach((key, ctrl) {
+        if (expensesChecked[key]! && key != 'Other') {
+          expenseData[key] = double.parse(ctrl.text);
+        }
+      });
+
+      if (expensesChecked['Other']! && otherExpenseController.text.trim().isNotEmpty) {
+        final description = otherExpenseController.text.trim();
+        final value = double.parse(expenseControllers['Other']!.text);
+        expenseData[description] = value;
+      }
+
+      // Net income calculation
+      final gross = double.parse(double.parse(grossIncomeController.text).toStringAsFixed(2));
+      final commission = commissionPercentage; 
+      final netIncome = double.parse((gross * (1 - commission)
+          - (todaysIAB - prevInApp)
+          - expenseData.values.whereType<num>().fold(0.0, (s, v) => s + v)).toStringAsFixed(2));
+
+      final dateKey = todayHumanKey();                  
+      final weekDay = weekdayName();                    
+
+      // Release Bike updates
+      final generalSnap = await bikesRef.get();
+      final bikes = Map<String, dynamic>.from(generalSnap.get('bikes'));
+
+      bikes.updateAll((key, value) {
+        final m = Map<String, dynamic>.from(value);
+        if (m['assignedRider'] == userName) {
+          m['assignedRider'] = "None";
+          m['isAssigned'] = false;
+        }
+        return m;
+      });
+
+      // Release Batteries
+      final batteryQuery = await batteriesRef.where('assignedRider', isEqualTo: userName).get();
+      for (var b in batteryQuery.docs) {
+        await b.reference.update({
+          'assignedRider': "None",
+          'assignedBike': "None",
+          'confirmedStatus': false,
+          'storeAssignedRider': "None",
+          'batteryLocation': selectedLoc,
+          'offTime': now,
+        });
+      }
+
+      // Process shift timelines
+      int timeElapsed = (now.millisecondsSinceEpoch - userSnap.get('clockInTime').millisecondsSinceEpoch) as int;
+      final clockoutData = {
+        "grossIncome": gross,
+        "todaysInAppBalance": double.parse(todaysIAB.toStringAsFixed(2)),
+        "previousInAppBalance": double.parse((prevInApp).toStringAsFixed(2)),
+        "inAppDifference": todaysIAB - prevInApp,
+        "expenses": expenseData,
+        "netIncome": netIncome,
+        "posted_at": now,
+        "timeElapsed": formatTimeElapsed(timeElapsed)
+      };
+
+      final notificationId = DateTime.now().millisecondsSinceEpoch.toString();
+        
+      await userRef.update({
+        "clockouts.$dateKey": clockoutData,
+        "currentInAppBalance": todaysIAB,
+        "isClockedIn": false,
+        "netClockedLastly": netIncome,
+        "pendingAmount": double.parse((pendingAmountOld + netIncome).toStringAsFixed(2)),
+        "lastClockDate": now,
+        "currentBike": "None",
+        'notifications.$notificationId': {
+          'isRead': false,
+          'message': 'You\'re clocked out for today.',
+          'time': now,
+        },
+        "numberOfNotifications": FieldValue.increment(1),
+      });
+
+      final deviationData = {
+        "grossIncome": gross,
+        "netIncome": netIncome,
+        "grossDeviation": gross - target,
+        "netGrossDifference": gross - netIncome,
+      };
+
+      await deviationsRef.set({
+        userName: {weekDay: deviationData}
+      }, SetOptions(merge: true));
+
+      // Handle monthly and yearly stats over transactions safely
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snap = await transaction.get(userRef);
+        final now = DateTime.now();
+        final monthName = DateFormat("MMMM").format(now);
+        final nextMonth = DateFormat("MMMM").format(DateTime(now.year, now.month + 1, now.day));
+
+        final netIncomes = Map<String, dynamic>.from(snap.data()?['netIncomes'] ?? {});
+        final workedDays = Map<String, dynamic>.from(snap.data()?['workedDays'] ?? {});
+
+        final currentIncome = (netIncomes[monthName] ?? 0.0) as num;
+        final currentDays = (workedDays[monthName] ?? 0.0) as num;
+
+        transaction.update(userRef, {
+          "netIncomes.$monthName": currentIncome + netIncome,
+          "workedDays.$monthName": currentDays + 1,
+          "netIncomes.$nextMonth": FieldValue.delete(),
+          "workedDays.$nextMonth": FieldValue.delete(),
+        });
+      });
+
+      await bikesRef.update({"bikes": bikes});
+      setState(() {
+        hasClockedOutToday = true;
+      });
+
+      // Store unassignment batch updates
+      final storeQuery = await FirebaseFirestore.instance
+        .collection("store")
+        .where("assignedTo", isEqualTo: userName)
+        .get();
+      final batch = FirebaseFirestore.instance.batch();
+
+      for (var doc in storeQuery.docs) {
+        final ref = doc.reference;
+        final message = "Unassigned from $userName on ${AppDateUtils.formatStandard(now)} due to clock-out. Awaiting confirmation.";
+
+        batch.update(ref, {
+          "assignedTo": "None",
+          "assignedToUid": "None",
+          "movement": "Incoming",
+          "droppedBy": userName,
+          "isAssigned": false,
+          "confirmedStatus": false,
+          "transactions": FieldValue.arrayUnion([
+            {
+              "message": message,
+              "time": now,
+            }
+          ]),
+        });
+      }
+      await batch.commit();
+      await pruneAllStoreTransactions();
+
+      await _updateYearlyAndMonthlyStats(
+        userName: '$userName',
+        gross: gross,
+        netIncome: netIncome,
+        expenseData: expenseData,
+      );
+      
+      ToastService.success("Clock-out successful! See you next time.");
+    } catch (e) {
+      if (!mounted) return;
+      
+      // Explicitly dismiss confirmation dialog on structural database breakdown error before opening next window
+      if (Navigator.canPop(dialogContext)) {
+        Navigator.pop(dialogContext);
+      }
+      
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Clock-Out Failed"),
+          content: SingleChildScrollView(
+            child: SelectableText(
+              e.toString(),
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Dismiss"),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      // 5. Unlocks UI processing state unconditionally
+      if (mounted) {
+        setState(() {
+          isClockingOut = false;
+        });
+      }
+    }
   }
 
   String formatTimeElapsed(int timeElapsedMs) {
@@ -428,253 +642,6 @@ class _ClockOutState extends State<ClockOut> {
     }
   }
     
-  Future<void> clockOut() async {
-    if (!canClockOut) {
-      Fluttertoast.showToast(msg: "Complete all required fields");
-      return;
-    }
-
-    try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-      final now = DateTime.now();
-
-      final fs = FirebaseFirestore.instance;
-      final userRef = fs.collection('users').doc(uid);
-      final batteriesRef = fs.collection('batteries');
-      final bikesRef = fs.collection('general').doc('general_variables');
-      final weekLabel = getWeekLabel(now);
-      final deviationsRef = fs.collection('deviations')
-          .doc(weekLabel);
-
-      // --- PULL USER PROFILE FIRST ---
-      final userSnap = await userRef.get();
-      if (!userSnap.exists) {
-        Fluttertoast.showToast(msg: "User not found");
-        return;
-      }
-      final userName = userSnap.get('userName');
-      final pendingAmountOld = userSnap.get('pendingAmount') ?? 0.0;
-      final prevInApp = double.parse(prevIABController.text);
-      final todaysIAB = double.parse(todaysIABController.text);
-      final clockinMileage = userSnap.get('clockinMileage');
-      final selectedLoc = selectedDestination;
-      if (double.parse(clockOutMileageController.text) < clockinMileage) {
-        Fluttertoast.showToast(
-          msg: "Clockout mileage too low",
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
-          backgroundColor: Colors.orange,
-          textColor: Colors.white,
-          fontSize: 14.0,
-        );
-        return;
-      }
-      // userSnap.get('currentBike');
-
-      // --- EXPENSE MAP --- (Fixed)
-      Map<String, dynamic> expenseData = {};
-      expenseControllers.forEach((key, ctrl) {
-        // Skip 'Other' when processing standard checkboxes
-        if (expensesChecked[key]! && key != 'Other') {
-          expenseData[key] = double.parse(ctrl.text);
-        }
-      });
-
-      // Handle 'Other' separately - ONLY if checked and has description
-      if (expensesChecked['Other']! && otherExpenseController.text.trim().isNotEmpty) {
-        final description = otherExpenseController.text.trim();
-        final value = double.parse(expenseControllers['Other']!.text);
-        expenseData[description] = value; // Only custom description as key
-      }
-
-      // --- NET INCOME CALC ---
-      final gross = double.parse(double.parse(grossIncomeController.text).toStringAsFixed(2));
-      final commission = commissionPercentage; // already fetched on load
-      final netIncome = double.parse((gross * (1 - commission)
-          - (todaysIAB - prevInApp)
-          - expenseData.values.whereType<num>().fold(0.0, (s, v) => s + v)).toStringAsFixed(2));
-
-      // --- DATE KEYS ---
-      final dateKey = todayHumanKey();                   // e.g. 06 Dec 2025
-      final weekDay = weekdayName();                     // Saturday
-
-      // -----------------------------------------------------------------------
-      // 1. RELEASE BIKE (general/general_variables/bikes)
-      // -----------------------------------------------------------------------
-      final generalSnap = await bikesRef.get();
-      final bikes = Map<String, dynamic>.from(generalSnap.get('bikes'));
-
-      bikes.updateAll((key, value) {
-        final m = Map<String, dynamic>.from(value);
-        if (m['assignedRider'] == userName) {
-          m['assignedRider'] = "None";
-          m['isAssigned'] = false;
-        }
-        return m;
-      });
-
-      // -----------------------------------------------------------------------
-      // 2. RELEASE BATTERIES + TRACE APPEND
-      // -----------------------------------------------------------------------
-      final batteryQuery = await batteriesRef
-          .where('assignedRider', isEqualTo: userName)
-          .get();
-
-      for (var b in batteryQuery.docs) {
-        // battery state
-        await b.reference.update({
-          'assignedRider': "None",
-          'assignedBike': "None",
-          'confirmedStatus': false,
-          'storeAssignedRider': "None",
-          'batteryLocation': selectedLoc,
-          'offTime': now,
-        });
-      }
-
-      // user profile
-      int timeElapsed = (now.millisecondsSinceEpoch - userSnap.get('clockInTime').millisecondsSinceEpoch) as int;
-      final clockoutData = {
-        "grossIncome": gross,
-        "todaysInAppBalance": double.parse(todaysIAB.toStringAsFixed(2)),
-        "previousInAppBalance": double.parse((prevInApp).toStringAsFixed(2)),
-        "inAppDifference": todaysIAB - prevInApp,
-        "expenses": expenseData,
-        "netIncome": netIncome,
-        "clockinMileage": clockinMileage,
-        "clockoutMileage": double.parse(clockOutMileageController.text),
-        "mileageDifference":
-            double.parse(clockOutMileageController.text) - clockinMileage,
-        "posted_at": now,
-        "timeElapsed": formatTimeElapsed(timeElapsed)
-      };
-
-      final notificationId =
-        DateTime.now().millisecondsSinceEpoch.toString();
-        
-      await userRef.update({
-        "clockouts.$dateKey": clockoutData,
-        "currentInAppBalance": todaysIAB,
-        "isClockedIn": false,
-        "netClockedLastly": netIncome,
-        "pendingAmount": double.parse((pendingAmountOld + netIncome).toStringAsFixed(2)),
-        "lastClockDate": now,
-        "currentBike": "None",
-        'notifications.$notificationId': {
-          'isRead': false,
-          'message': 'You\'re clocked out for today.',
-          'time': now,
-        },
-        "numberOfNotifications": FieldValue.increment(1),
-      });
-
-      // deviations
-      final deviationData = {
-        "grossIncome": gross,
-        "netIncome": netIncome,
-        "grossDeviation": gross - target,
-        "netGrossDifference": gross - netIncome,
-      };
-
-      await deviationsRef.set({
-        userName: {weekDay: deviationData}
-      }, SetOptions(merge: true));
-
-      // net income and worked days
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final snap = await transaction.get(userRef);
-
-        final now = DateTime.now();
-        final monthName = DateFormat("MMMM").format(now);
-        final nextMonth = DateFormat("MMMM")
-            .format(DateTime(now.year, now.month + 1, now.day));
-
-        // Safely read netIncomes and workedDays maps
-        final netIncomes = Map<String, dynamic>.from(snap.data()?['netIncomes'] ?? {});
-        final workedDays = Map<String, dynamic>.from(snap.data()?['workedDays'] ?? {});
-
-        final currentIncome = (netIncomes[monthName] ?? 0.0) as num;
-        final currentDays = (workedDays[monthName] ?? 0.0) as num;
-
-        transaction.update(userRef, {
-          "netIncomes.$monthName": currentIncome + netIncome,
-          "workedDays.$monthName": currentDays + 1,
-          "netIncomes.$nextMonth": FieldValue.delete(),
-          "workedDays.$nextMonth": FieldValue.delete(),
-        });
-      });
-
-      // bike
-      await bikesRef.update({"bikes": bikes});
-      setState(() {
-        hasClockedOutToday = true;
-      });
-
-      // store
-      final storeQuery = await FirebaseFirestore.instance
-        .collection("store")
-        .where("assignedTo", isEqualTo: userName)
-        .get();
-      final batch = FirebaseFirestore.instance.batch();
-
-      for (var doc in storeQuery.docs) {
-        final ref = doc.reference;
-
-        final now = DateTime.now();
-
-        final message =
-            "Unassigned from $userName on ${AppDateUtils.formatStandard(now)} due to clock-out. Awaiting confirmation.";
-
-        batch.update(ref, {
-          "assignedTo": "None",
-          "assignedToUid": "None",
-          "movement": "Incoming",
-          "droppedBy": userName,
-          "isAssigned": false,
-          "confirmedStatus": false,
-          "transactions": FieldValue.arrayUnion([
-            {
-              "message": message,
-              "time": now,
-            }
-          ]),
-        });
-      }
-      await batch.commit();
-      await pruneAllStoreTransactions();
-
-      await _updateYearlyAndMonthlyStats(
-        userName: '$userName',
-        gross: gross,
-        netIncome: netIncome,
-        expenseData: expenseData,
-      );
-      
-      ToastService.success("Clock-out successful! See you next time.");
-    } catch (e) {
-        if (!mounted) return;
-        
-        showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Clock-Out Failed"),
-          content: SingleChildScrollView(
-            child: SelectableText(
-              e.toString(), // full exception string, now copiable
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Dismiss"),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
   Future<void> _updateYearlyAndMonthlyStats({
     required String userName,
     required double gross,
@@ -1075,36 +1042,6 @@ class _ClockOutState extends State<ClockOut> {
 
                 const SizedBox(height: 12),
 
-                // Clock-In Mileage (uneditable)
-                _buildTextField(
-                  enabled: false,
-                  controller: clockInMileageController,
-                  label: 'Clock-In Mileage',
-                  hint: '',
-                  onChanged: (_) => setState(() {}),
-                  keyboardType: TextInputType.number,
-                  icon: Icons.history,
-                  validator: (v) => v == null || v.isEmpty 
-                      ? 'Auto-filled' 
-                      : null,
-                ),
-                const SizedBox(height: 20),
-
-                // Clock-Out Mileage
-                _buildTextField(
-                  enabled: true,
-                  controller: clockOutMileageController,
-                  label: 'Clock-Out Mileage',
-                  hint: 'Enter clock-out mileage',
-                  icon: Icons.directions_bike,
-                  onChanged: (_) => setState(() {}),
-                  keyboardType: TextInputType.number,
-                  validator: (v) => v == null || v.isEmpty 
-                      ? 'Mileage is required' 
-                      : null,
-                ),
-                const SizedBox(height: 20),
-
 
 
                 // Location dropdown
@@ -1134,7 +1071,7 @@ class _ClockOutState extends State<ClockOut> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: (!hasClockedOutToday && canClockOut && !isClockingOut && _clockOutMileageValid() && isClockedIn && (_isOnline == true))
+                    onPressed: (!hasClockedOutToday && canClockOut && !isClockingOut && isClockedIn && (_isOnline == true))
                         ? showClockOutConfirmationDialog
                         : null,
                     style: ElevatedButton.styleFrom(
@@ -1268,4 +1205,3 @@ Widget _buildDropdownField<T>({
     ),
   );
 }
-
