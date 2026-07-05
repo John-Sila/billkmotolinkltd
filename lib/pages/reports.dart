@@ -112,7 +112,7 @@ class Reports extends StatelessWidget {
           elevation: 2,
           child: ListTile(
             leading: const Icon(Icons.event_busy_rounded, color: Colors.teal),
-            title: const Text('Absenteeism'),
+            title: const Text('Attendance Rota'),
             subtitle: const Text('See which riders clocked out each day, by week.'),
             onTap: () {
               Navigator.push(

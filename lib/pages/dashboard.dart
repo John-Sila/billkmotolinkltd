@@ -2090,7 +2090,7 @@ class _DashboardState extends State<Dashboard> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Bike "$bikeId"',
+                bikeId,
                 style: localTheme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: localTheme.colorScheme.primary,
@@ -2098,7 +2098,7 @@ class _DashboardState extends State<Dashboard> {
               ),
               const SizedBox(height: 8),
               Text(
-                'from rider "$riderName"?',
+                'from $riderName?',
                 style: localTheme.textTheme.bodyMedium,
               ),
             ],
