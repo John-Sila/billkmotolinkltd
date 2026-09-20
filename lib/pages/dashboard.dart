@@ -759,271 +759,310 @@ class _DashboardState extends State<Dashboard> {
             color: theme.colorScheme.primary,
             backgroundColor: theme.colorScheme.surface,
             child: CustomScrollView(
-            slivers: [
-              // ✅ PREMIUM SLIVERAPPBAR
-              SliverAppBar(
-                expandedHeight: 280, // Increased for more beauty
-                floating: true,
-                snap: true,
-                pinned: true,
-                collapsedHeight: kToolbarHeight + 8,
-                backgroundColor: Colors.transparent,
-                foregroundColor: theme.colorScheme.onInverseSurface,
-                elevation: 0,
-                shadowColor: Colors.transparent,
+              slivers: [
+                // ✅ PREMIUM SLIVERAPPBAR
+                SliverAppBar(
+                  expandedHeight: 280,
+                  floating: true,
+                  snap: true,
+                  pinned: true,
+                  collapsedHeight: kToolbarHeight + 8,
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
 
-                // TITLE
-                title: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        theme.colorScheme.primary,
-                        theme.colorScheme.primary.withValues(alpha: 0.8),
-                      ],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.waving_hand_rounded, color: Colors.white, size: 22),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Welcome Back',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // GORGEOUS FLEXIBLE SPACE
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
+                  // TITLE
+                  title: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
                         colors: [
-                          theme.colorScheme.primary.withValues(alpha: 0.95),
-                          isDark 
-                              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.85)
-                              : theme.colorScheme.secondary.withValues(alpha: 0.9),
+                          theme.colorScheme.primary,
+                          theme.colorScheme.primaryContainer,
                         ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
                       ),
-                      // BOTTOM ROUNDED CORNERS ONLY
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(32),
-                        bottomRight: Radius.circular(32),
-                      ),
+                      borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.2),
-                          blurRadius: 30,
-                          offset: const Offset(0, 12),
-                          spreadRadius: -8,
+                          color: theme.colorScheme.shadow.withValues(alpha: 0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
-                    child: SafeArea(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // ANIMATED AVATAR
-                          Hero(
-                            tag: 'user_avatar',
-                            child: Container(
-                              width: 90,
-                              height: 90,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.waving_hand_rounded,
+                          color: theme.colorScheme.onPrimary,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Welcome Back',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.onPrimary,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // GORGEOUS FLEXIBLE SPACE
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            theme.colorScheme.primary,
+                            theme.colorScheme.primaryContainer,
+                          ],
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(32),
+                          bottomRight: Radius.circular(32),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.colorScheme.shadow.withValues(alpha: isDark ? 0.4 : 0.15),
+                            blurRadius: 30,
+                            offset: const Offset(0, 12),
+                            spreadRadius: -8,
+                          ),
+                        ],
+                      ),
+                      child: SafeArea(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // ANIMATED AVATAR
+                            Hero(
+                              tag: 'user_avatar',
+                              child: Container(
+                                width: 90,
+                                height: 90,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      theme.colorScheme.onPrimary.withValues(alpha: 0.3),
+                                      theme.colorScheme.onPrimary.withValues(alpha: 0.1),
+                                    ],
+                                  ),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: theme.colorScheme.onPrimary.withValues(alpha: 0.4),
+                                    width: 3,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: theme.colorScheme.shadow.withValues(alpha: 0.2),
+                                      blurRadius: 30,
+                                      offset: const Offset(0, 12),
+                                    ),
+                                  ],
+                                ),
+                                child: CircleAvatar(
+                                  radius: 42,
+                                  backgroundColor: theme.colorScheme.primaryContainer,
+                                  child: Text(
+                                    userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                                    style: theme.textTheme.headlineMedium?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                      color: theme.colorScheme.onPrimaryContainer,
+                                      shadows: [
+                                        Shadow(
+                                          offset: const Offset(0, 2),
+                                          blurRadius: 8,
+                                          color: theme.colorScheme.shadow.withValues(alpha: 0.3),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // TIME-BASED GREETING
+                            ShaderMask(
+                              shaderCallback: (bounds) => RadialGradient(
+                                colors: [
+                                  theme.colorScheme.onPrimary,
+                                  theme.colorScheme.onPrimary.withValues(alpha: 0.8),
+                                ],
+                              ).createShader(bounds),
+                              child: Text(
+                                greeting,
+                                style: theme.textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.colorScheme.onPrimary,
+                                  shadows: [
+                                    Shadow(
+                                      offset: const Offset(0, 4),
+                                      blurRadius: 16,
+                                      color: theme.colorScheme.shadow.withValues(alpha: 0.4),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                // Username with gradient
+                                ShaderMask(
+                                  shaderCallback: (bounds) => LinearGradient(
+                                    colors: [
+                                      theme.colorScheme.onPrimary,
+                                      theme.colorScheme.onPrimary.withValues(alpha: 0.8),
+                                    ],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ).createShader(bounds),
+                                  child: Text(
+                                    userName,
+                                    style: theme.textTheme.headlineLarge?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                      color: theme.colorScheme.onPrimary,
+                                      height: 1.1,
+                                      shadows: [
+                                        Shadow(
+                                          offset: const Offset(0, 4),
+                                          blurRadius: 20,
+                                          color: theme.colorScheme.shadow.withValues(alpha: 0.4),
+                                        ),
+                                        Shadow(
+                                          offset: const Offset(2, 2),
+                                          blurRadius: 12,
+                                          color: theme.colorScheme.shadow.withValues(alpha: 0.2),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(width: 6),
+
+                                // Badge
+                                Transform.translate(
+                                  offset: const Offset(0, -3),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      gradient: _toBool(userData['isVerified'])
+                                          ? LinearGradient(
+                                              colors: [
+                                                theme.colorScheme.tertiary,
+                                                theme.colorScheme.tertiaryContainer,
+                                              ],
+                                            )
+                                          : LinearGradient(
+                                              colors: [
+                                                theme.colorScheme.outline,
+                                                theme.colorScheme.outlineVariant,
+                                              ],
+                                            ),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: (_toBool(userData['isVerified'])
+                                                  ? theme.colorScheme.tertiary
+                                                  : theme.colorScheme.outline)
+                                              .withValues(alpha: 0.4),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Icon(
+                                      _toBool(userData['isVerified'])
+                                          ? Icons.verified_rounded
+                                          : Icons.warning_rounded,
+                                      color: _toBool(userData['isVerified'])
+                                          ? theme.colorScheme.onTertiary
+                                          : theme.colorScheme.onSurfaceVariant,
+                                      size: 16,
+                                      shadows: [
+                                        Shadow(
+                                          offset: const Offset(0, 1),
+                                          blurRadius: 2,
+                                          color: theme.colorScheme.shadow.withValues(alpha: 0.2),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // RANK BADGE
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                              margin: const EdgeInsets.only(top: 15),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
-                                    Colors.white.withValues(alpha: 0.3),
-                                    Colors.white.withValues(alpha: 0.1),
+                                    theme.colorScheme.onPrimary.withValues(alpha: 0.2),
+                                    theme.colorScheme.onPrimary.withValues(alpha: 0.1),
                                   ],
                                 ),
-                                shape: BoxShape.circle,
+                                borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                  width: 3,
+                                  color: theme.colorScheme.onPrimary.withValues(alpha: 0.3),
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                    blurRadius: 30,
-                                    offset: const Offset(0, 12),
-                                  ),
-                                ],
                               ),
-                              child: CircleAvatar(
-                                radius: 42,
-                                backgroundColor: theme.colorScheme.primaryContainer,
-                                child: Text(
-                                  userName.isNotEmpty ? userName[0].toUpperCase() : '?',
-                                  style: const TextStyle(
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    shadows: [
-                                      Shadow(offset: Offset(0, 2), blurRadius: 8, color: Colors.black45),
-                                    ],
-                                  ),
+                              child: Text(
+                                userRank.toUpperCase(),
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: theme.colorScheme.onPrimary,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.2,
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // TIME-BASED GREETING
-                          ShaderMask(
-                            shaderCallback: (bounds) => RadialGradient(
-                              colors: [Colors.white, Colors.white.withValues(alpha: 0.8)],
-                            ).createShader(bounds),
-                            child: Text(
-                              greeting,
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                shadows: const [
-                                  Shadow(offset: Offset(0, 4), blurRadius: 16, color: Colors.black54),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              // Username with gradient
-                              ShaderMask(
-                                shaderCallback: (bounds) => LinearGradient(
-                                  colors: [Colors.white, theme.colorScheme.primary.withValues(alpha: 0.9)],
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                ).createShader(bounds),
-                                child: Text(
-                                  userName,
-                                  style: theme.textTheme.headlineLarge?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    height: 1.1,
-                                    shadows: const [
-                                      Shadow(offset: Offset(0, 4), blurRadius: 20, color: Colors.black54),
-                                      Shadow(offset: Offset(2, 2), blurRadius: 12, color: Colors.black26),
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(width: 6),
-
-                              // Badge
-                              Transform.translate(
-                                offset: const Offset(0, -3), // ← move up (tweak -2 to -5 to taste)
-                                child: Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: BoxDecoration(
-                                    gradient: _toBool(userData['isVerified'])
-                                        ? LinearGradient(colors: [Colors.blue.shade600, Colors.blue.shade800])
-                                        : LinearGradient(colors: [Colors.grey.shade500, Colors.grey.shade700]),
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: _toBool(userData['isVerified']) 
-                                            ? Colors.blue.withValues(alpha: 0.4)
-                                            : Colors.grey.withValues(alpha: 0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    _toBool(userData['isVerified'])
-                                        ? Icons.verified_rounded
-                                        : Icons.warning_rounded,
-                                    color: Colors.white,
-                                    size: 16,
-                                    shadows: const [
-                                      Shadow(offset: Offset(0, 1), blurRadius: 2, color: Colors.black26),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                                ],
-                              ),
-                          
-                          // RANK BADGE
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                            margin: const EdgeInsets.only(top: 15),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.2),
-                                  Colors.white.withValues(alpha: 0.1),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                            ),
-                            child: Text(
-                              userRank.toUpperCase(),
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
 
-              // CONTENT
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      // Events Section
-                      if (_events.isNotEmpty) ...[
-                        _buildEventsSection(theme),
-                        const SizedBox(height: 28),
-                      ],
+                // CONTENT
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        // Events Section
+                        if (_events.isNotEmpty) ...[
+                          _buildEventsSection(theme),
+                          const SizedBox(height: 28),
+                        ],
 
-                      // Polls Section
-                      if (_polls.isNotEmpty) ...[
-                        _buildPollsSection(theme),
-                        const SizedBox(height: 28),
+                        // Polls Section
+                        if (_polls.isNotEmpty) ...[
+                          _buildPollsSection(theme),
+                          const SizedBox(height: 28),
+                        ],
+
+                        // Stats Cards
+                        _buildStatsCards(theme, userData),
                       ],
-                      // Stats Cards
-                      _buildStatsCards(theme, userData),
-                      
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
             ),
           ),
 
@@ -1034,7 +1073,6 @@ class _DashboardState extends State<Dashboard> {
         ],
       ),
     );
-
 
 
   }
@@ -1423,7 +1461,11 @@ class _DashboardState extends State<Dashboard> {
 
     return Column(
       children: [
-        // ✅ BEAUTIFIED HEADER
+        // ASSIGNED BIKE — big, unmissable banner
+        _buildAssignedBikeBanner(theme, user, isDark),
+        const SizedBox(height: 24),
+        
+        // BEAUTIFIED HEADER
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(24),
@@ -1501,7 +1543,7 @@ class _DashboardState extends State<Dashboard> {
         ),
         const SizedBox(height: 24),
 
-        // ✅ PREMIUM STATS GRID
+        // PREMIUM STATS GRID
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -1602,11 +1644,315 @@ class _DashboardState extends State<Dashboard> {
         ),
         const SizedBox(height: 24),
 
-        // ✅ ENHANCED STATUS ROW
+        
+
+        // ENHANCED STATUS ROW
         _buildStatusRow(theme, user, isDark),
       ],
     );
   }
+
+Widget _buildAssignedBikeBanner(ThemeData theme, Map<String, dynamic> user, bool isDark) {
+  final String? bikeName = (user['assignedBikeName'] as String?)?.trim().isEmpty ?? true
+      ? null
+      : user['assignedBikeName'] as String;
+  final bool hasBike = bikeName != null;
+
+  // 'day' | 'night' | null (not set — e.g. assigned before shifts existed)
+  final String? rawShift = (user['assignedShift'] as String?)?.trim().toLowerCase();
+  final String? shift = (rawShift == 'day' || rawShift == 'night') ? rawShift : null;
+
+  // Inner Container Gradient Colors (Theme Responsive)
+  final List<Color> gradientColors = hasBike
+      ? (isDark
+          ? [
+              const Color(0xFF0F2027),
+              const Color(0xFF203A43),
+              const Color(0xFF00796B),
+            ]
+          : [
+              theme.colorScheme.primaryContainer,
+              theme.colorScheme.primaryContainer.withValues(alpha: 0.85),
+              theme.colorScheme.tertiaryContainer,
+            ])
+      : [
+          theme.colorScheme.surfaceContainerHighest,
+          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+        ];
+
+  // Dynamic Text & Element Colors for Accessibility Across Themes
+  final Color titleColor = hasBike
+      ? (isDark ? Colors.white : theme.colorScheme.onPrimaryContainer)
+      : theme.colorScheme.onSurface;
+
+  final Color subtitleColor = hasBike
+      ? (isDark
+          ? Colors.white.withValues(alpha: 0.85)
+          : theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8))
+      : theme.colorScheme.onSurfaceVariant;
+
+  final Color bodyTextColor = hasBike
+      ? (isDark
+          ? Colors.white.withValues(alpha: 0.75)
+          : theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.7))
+      : theme.colorScheme.onSurfaceVariant;
+
+  final Color iconColor = hasBike
+      ? (isDark ? Colors.white : theme.colorScheme.primary)
+      : theme.colorScheme.primary;
+
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(28),
+      gradient: hasBike
+          ? LinearGradient(
+              colors: isDark
+                  ? [
+                      theme.colorScheme.primary.withValues(alpha: 0.9),
+                      const Color(0xFF00C6A2),
+                    ]
+                  : [
+                      theme.colorScheme.primary.withValues(alpha: 0.4),
+                      theme.colorScheme.tertiary.withValues(alpha: 0.4),
+                    ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            )
+          : null,
+      boxShadow: hasBike
+          ? [
+              BoxShadow(
+                color: theme.colorScheme.primary.withValues(alpha: isDark ? 0.35 : 0.15),
+                blurRadius: 28,
+                offset: const Offset(0, 12),
+              ),
+            ]
+          : null,
+    ),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: hasBike
+            ? (isDark
+                ? null
+                : Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                    width: 1,
+                  ))
+            : Border.all(
+                color: theme.colorScheme.outlineVariant,
+                width: 1.5,
+              ),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Decorative faint bike silhouette in the background for depth
+          Positioned(
+            right: -18,
+            bottom: -22,
+            child: Icon(
+              Icons.two_wheeler_rounded,
+              size: 140,
+              color: hasBike
+                  ? (isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : theme.colorScheme.primary.withValues(alpha: 0.08))
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.04),
+            ),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: hasBike
+                      ? LinearGradient(
+                          colors: isDark
+                              ? [
+                                  Colors.white.withValues(alpha: 0.25),
+                                  Colors.white.withValues(alpha: 0.08),
+                                ]
+                              : [
+                                  theme.colorScheme.surface.withValues(alpha: 0.9),
+                                  theme.colorScheme.surface.withValues(alpha: 0.6),
+                                ],
+                        )
+                      : null,
+                  color: hasBike ? null : theme.colorScheme.primary.withValues(alpha: 0.12),
+                  border: hasBike
+                      ? Border.all(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.4)
+                              : theme.colorScheme.primary.withValues(alpha: 0.2),
+                          width: 1.5,
+                        )
+                      : null,
+                ),
+                child: Icon(
+                  hasBike ? Icons.electric_bike_rounded : Icons.report_gmailerrorred_rounded,
+                  color: iconColor,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: hasBike
+                                ? (isDark ? const Color(0xFF69F0AE) : const Color(0xFF00875A))
+                                : theme.colorScheme.error,
+                            boxShadow: hasBike
+                                ? [
+                                    BoxShadow(
+                                      color: (isDark
+                                              ? const Color(0xFF69F0AE)
+                                              : const Color(0xFF00875A))
+                                          .withValues(alpha: 0.6),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          hasBike ? 'YOUR ASSIGNED BIKE' : 'NO BIKE ASSIGNED',
+                          style: TextStyle(
+                            color: subtitleColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            letterSpacing: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      bikeName ?? 'Contact your admin to get a bike assigned',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: titleColor,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (hasBike) ...[
+                      const SizedBox(height: 10),
+                      _buildShiftPill(shift, theme, isDark),
+                      const SizedBox(height: 8),
+                      Text(
+                        shift == null
+                            ? 'Ask your admin to set your shift'
+                            : 'Use this bike when you clock in',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: bodyTextColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildShiftPill(String? shift, ThemeData theme, bool isDark) {
+  final bool isSet = shift != null;
+  final bool isNight = shift == 'night';
+
+  Color pillBg;
+  Color contentColor;
+  IconData icon;
+  String label;
+
+  if (!isSet) {
+    icon = Icons.help_outline_rounded;
+    label = 'SHIFT NOT SET';
+    if (isDark) {
+      pillBg = Colors.white.withValues(alpha: 0.14);
+      contentColor = const Color(0xFFFFB74D);
+    } else {
+      pillBg = const Color(0xFFFFE0B2);
+      contentColor = const Color(0xFF8C3D00);
+    }
+  } else if (isNight) {
+    icon = Icons.nightlight_round;
+    label = 'NIGHT SHIFT';
+    if (isDark) {
+      pillBg = Colors.white.withValues(alpha: 0.14);
+      contentColor = const Color(0xFF9FA8DA);
+    } else {
+      pillBg = const Color(0xFFE1F5FE);
+      contentColor = const Color(0xFF01579B);
+    }
+  } else {
+    // Day Shift
+    icon = Icons.wb_sunny_rounded;
+    label = 'DAY SHIFT';
+    if (isDark) {
+      pillBg = Colors.white.withValues(alpha: 0.14);
+      contentColor = const Color(0xFFFFD54F);
+    } else {
+      pillBg = const Color(0xFFFFF3C4);
+      contentColor = const Color(0xFF7A4B00);
+    }
+  }
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: pillBg,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: contentColor.withValues(alpha: isDark ? 0.7 : 0.4),
+        width: 1.2,
+      ),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: contentColor),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            color: contentColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.1,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildAdminDashboard(ThemeData theme) {
     return StreamBuilder<DocumentSnapshot>(
@@ -2007,63 +2353,115 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// One bike, two shift slots (day / night). Each slot shows its rider and
+  /// can be dropped on its own by tapping it.
   Widget _buildCompactBikeTile(MapEntry<String, dynamic> bikeEntry, ThemeData theme) {
-    final bikeInfo = bikeEntry.value as Map<String, dynamic>;
-    final isAssigned = bikeInfo['isAssigned'] ?? false;
     final bikeId = bikeEntry.key;
-    final assignedRider = bikeInfo['assignedRider'] ?? 'None';
-    
-    return InkWell(
-      onTap: () {
-        if (isAssigned) {
-          _showDropBikeDialog(context, bikeId, assignedRider);
-        }
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: (isAssigned ? Colors.green : Colors.red).withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: (isAssigned ? Colors.green : Colors.red).withValues(alpha: 0.3),
-            width: 1,
+    final bikeInfo = bikeEntry.value is Map
+        ? Map<String, dynamic>.from(bikeEntry.value as Map)
+        : <String, dynamic>{};
+
+    // Read each shift slot: bikes.<bike>.day / bikes.<bike>.night
+    bool slotAssigned(String shift) {
+      final slot = bikeInfo[shift];
+      return slot is Map && slot['isAssigned'] == true;
+    }
+
+    String slotRider(String shift) {
+      final slot = bikeInfo[shift];
+      if (slot is! Map) return 'None';
+      final rider = slot['assignedRider']?.toString();
+      return (rider == null || rider.isEmpty) ? 'None' : rider;
+    }
+
+    final int assignedCount =
+        ['day', 'night'].where((s) => slotAssigned(s)).length;
+
+    // green = both shifts staffed, orange = one, red = none
+    final Color tint = assignedCount == 2
+        ? Colors.green
+        : (assignedCount == 1 ? Colors.orange : Colors.red);
+
+    Widget shiftRow(String shift) {
+      final isAssigned = slotAssigned(shift);
+      final riderName = slotRider(shift);
+      final isNight = shift == 'night';
+
+      return InkWell(
+        onTap: isAssigned
+            ? () => _showDropBikeDialog(context, bikeId, riderName, shift)
+            : null,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: isAssigned ? Colors.green : Colors.red,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Icon(
+                isNight ? Icons.nightlight_round : Icons.wb_sunny_rounded,
+                size: 14,
+                color: isNight ? Colors.indigo[400] : Colors.amber[800],
+              ),
+              const SizedBox(width: 6),
+              Text(
+                isNight ? 'Night' : 'Day',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  riderName,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: isAssigned ? Colors.green : Colors.red,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                bikeId,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-              ),
-            ),
-            Text(
-              assignedRider,
-              style: TextStyle(
-                fontSize: 13,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: tint.withValues(alpha: 0.3),
+          width: 1,
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            bikeId,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+          ),
+          const SizedBox(height: 4),
+          shiftRow('day'),
+          shiftRow('night'),
+        ],
       ),
     );
   }
     
-  void _showDropBikeDialog(BuildContext context, String bikeId, String riderName) {
+  void _showDropBikeDialog(BuildContext context, String bikeId, String riderName, String shift) {
+    final shiftLabel = shift == 'night' ? 'Night' : 'Day';
     final localTheme = Theme.of(context);
     
     showDialog(
@@ -2098,7 +2496,7 @@ class _DashboardState extends State<Dashboard> {
               ),
               const SizedBox(height: 8),
               Text(
-                'from $riderName?',
+                'from $riderName ($shiftLabel shift)?',
                 style: localTheme.textTheme.bodyMedium,
               ),
             ],
@@ -2126,14 +2524,14 @@ class _DashboardState extends State<Dashboard> {
                       .collection('general')
                       .doc('general_variables')
                       .update({
-                    'bikes.$bikeId.isAssigned': false,
-                    'bikes.$bikeId.assignedRider': 'None',
+                    'bikes.$bikeId.$shift.isAssigned': false,
+                    'bikes.$bikeId.$shift.assignedRider': 'None',
                   });
 
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Bike $bikeId successfully dropped.'),
+                        content: Text('Bike $bikeId ($shiftLabel shift) successfully dropped.'),
                         behavior: SnackBarBehavior.floating,
                         duration: const Duration(seconds: 3),
                       ),

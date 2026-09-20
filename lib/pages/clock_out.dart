@@ -70,6 +70,76 @@ class _ClockOutState extends State<ClockOut> {
   bool isLoading = true;
   String userName = "";
 
+  /// The bike and shift this rider clocked in with (shown on the page and
+  /// used to attribute the clock-out to the right shift).
+  String? activeBike;
+  String? activeShift; // 'day' | 'night' | null (unknown, e.g. clocked in before shifts existed)
+
+  /// 'day' / 'night' or null for anything else (missing, "None", etc.).
+  String? _validShift(dynamic value) {
+    final s = value?.toString().trim().toLowerCase();
+    return (s == 'day' || s == 'night') ? s : null;
+  }
+
+  /// Shift the rider clocked in on. Prefers `currentShift` (written at
+  /// clock-in) and falls back to `assignedShift` for anyone who clocked in
+  /// before this field existed.
+  String? _shiftFromUserData(Map<String, dynamic> data) =>
+      _validShift(data['currentShift']) ?? _validShift(data['assignedShift']);
+
+  Widget _buildShiftInfoCard() {
+    final isNight = activeShift == 'night';
+    final Color color = activeShift == null
+        ? Colors.blueGrey
+        : (isNight ? Colors.indigo[400]! : Colors.amber[800]!);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            activeShift == null
+                ? Icons.two_wheeler_outlined
+                : (isNight ? Icons.nightlight_round : Icons.wb_sunny_rounded),
+            color: color,
+            size: 22,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  activeShift == null
+                      ? 'Current shift'
+                      : (isNight ? 'Night shift' : 'Day shift'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  activeBike ?? 'Bike not recorded',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String todayHumanKey() {
     return DateFormat("dd MMM yyyy", "en_US").format(DateTime.now());
   }
@@ -147,6 +217,10 @@ class _ClockOutState extends State<ClockOut> {
       }
 
       userName = userData['userName'] ?? "User";
+
+      final bikeRaw = userData['currentBike']?.toString().trim();
+      activeBike = (bikeRaw == null || bikeRaw.isEmpty || bikeRaw == 'None') ? null : bikeRaw;
+      activeShift = _shiftFromUserData(userData);
 
       // Fetch commission
       final generalDoc =
@@ -262,7 +336,9 @@ class _ClockOutState extends State<ClockOut> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Are you sure you want to end this shift?',
+                activeShift == null
+                    ? 'Are you sure you want to end this shift?'
+                    : 'Are you sure you want to end this ${activeShift == 'night' ? 'night' : 'day'} shift?',
                 style: localTheme.textTheme.bodyMedium?.copyWith(
                   color: localTheme.colorScheme.onSurfaceVariant,
                 ),
@@ -358,7 +434,6 @@ class _ClockOutState extends State<ClockOut> {
       final fs = FirebaseFirestore.instance;
       final userRef = fs.collection('users').doc(uid);
       final batteriesRef = fs.collection('batteries');
-      final bikesRef = fs.collection('general').doc('general_variables');
       final weekLabel = getWeekLabel(now);
       final deviationsRef = fs.collection('deviations').doc(weekLabel);
 
@@ -370,6 +445,12 @@ class _ClockOutState extends State<ClockOut> {
       }
       
       final userName = userSnap.get('userName');
+
+      // The shift this rider is actually closing out (from the fresh doc, not
+      // the possibly-stale page state). Never blocks clock-out if it's unknown —
+      // money settlement matters more than the label.
+      final shift = _shiftFromUserData(userSnap.data() ?? {});
+
       final pendingAmountOld = userSnap.get('pendingAmount') ?? 0.0;
       final prevInApp = double.parse(prevIABController.text);
       final todaysIAB = double.parse(todaysIABController.text);
@@ -404,27 +485,17 @@ class _ClockOutState extends State<ClockOut> {
       final dateKey = todayHumanKey();                  
       final weekDay = weekdayName();                    
 
-      // Release Bike updates
-      final generalSnap = await bikesRef.get();
-      final bikes = Map<String, dynamic>.from(generalSnap.get('bikes'));
-
-      bikes.updateAll((key, value) {
-        final m = Map<String, dynamic>.from(value);
-        if (m['assignedRider'] == userName) {
-          m['assignedRider'] = "None";
-          m['isAssigned'] = false;
-        }
-        return m;
-      });
-
-      // Release Batteries
+      // Release Batteries (bikes stay assigned to the rider — that's managed
+      // separately via the Assignments page, not reset on every clock-out.
+      // Each bike has a day slot and a night slot, so leaving the slot alone
+      // here also guarantees we never disturb the OTHER shift's rider.
+      // This clock-out is recorded against `shift` below.)
       final batteryQuery = await batteriesRef.where('assignedRider', isEqualTo: userName).get();
       for (var b in batteryQuery.docs) {
         await b.reference.update({
           'assignedRider': "None",
           'assignedBike': "None",
           'confirmedStatus': false,
-          'storeAssignedRider': "None",
           'batteryLocation': selectedLoc,
           'offTime': now,
         });
@@ -440,7 +511,8 @@ class _ClockOutState extends State<ClockOut> {
         "expenses": expenseData,
         "netIncome": netIncome,
         "posted_at": now,
-        "timeElapsed": formatTimeElapsed(timeElapsed)
+        "timeElapsed": formatTimeElapsed(timeElapsed),
+        if (shift != null) "shift": shift,
       };
 
       final notificationId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -453,6 +525,7 @@ class _ClockOutState extends State<ClockOut> {
         "pendingAmount": double.parse((pendingAmountOld + netIncome).toStringAsFixed(2)),
         "lastClockDate": now,
         "currentBike": "None",
+        "currentShift": "None",
         'notifications.$notificationId': {
           'isRead': false,
           'message': 'You\'re clocked out for today.',
@@ -493,39 +566,9 @@ class _ClockOutState extends State<ClockOut> {
         });
       });
 
-      await bikesRef.update({"bikes": bikes});
       setState(() {
         hasClockedOutToday = true;
       });
-
-      // Store unassignment batch updates
-      final storeQuery = await FirebaseFirestore.instance
-        .collection("store")
-        .where("assignedTo", isEqualTo: userName)
-        .get();
-      final batch = FirebaseFirestore.instance.batch();
-
-      for (var doc in storeQuery.docs) {
-        final ref = doc.reference;
-        final message = "Unassigned from $userName on ${AppDateUtils.formatStandard(now)} due to clock-out. Awaiting confirmation.";
-
-        batch.update(ref, {
-          "assignedTo": "None",
-          "assignedToUid": "None",
-          "movement": "Incoming",
-          "droppedBy": userName,
-          "isAssigned": false,
-          "confirmedStatus": false,
-          "transactions": FieldValue.arrayUnion([
-            {
-              "message": message,
-              "time": now,
-            }
-          ]),
-        });
-      }
-      await batch.commit();
-      await pruneAllStoreTransactions();
 
       await _updateYearlyAndMonthlyStats(
         userName: '$userName',
@@ -578,70 +621,6 @@ class _ClockOutState extends State<ClockOut> {
     return '${hours.toString().padLeft(1)} hrs ${minutes.toString().padLeft(2)} mins';
   }
 
-  Future<void> pruneAllStoreTransactions({int retentionDays = 30}) async {
-    try {
-      final collection = FirebaseFirestore.instance.collection("store");
-
-      final snapshot = await collection.get();
-
-      if (snapshot.docs.isEmpty) return;
-
-      final batch = FirebaseFirestore.instance.batch();
-      final now = DateTime.now();
-      final cutoff = now.subtract(Duration(days: retentionDays));
-
-      int updates = 0;
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-
-        final List<dynamic> transactions =
-            List<dynamic>.from(data['transactions'] ?? []);
-
-        if (transactions.isEmpty) continue;
-
-        final filtered = transactions.where((tx) {
-          final time = tx['time'];
-
-          if (time == null) return false;
-
-          DateTime txTime;
-
-          if (time is Timestamp) {
-            txTime = time.toDate();
-          } else if (time is DateTime) {
-            txTime = time;
-          } else {
-            return false;
-          }
-
-          return txTime.isAfter(cutoff);
-        }).toList();
-
-        // Only update if something changed
-        if (filtered.length != transactions.length) {
-          batch.update(doc.reference, {
-            "transactions": filtered,
-          });
-          updates++;
-        }
-
-        // Firestore batch limit = 500
-        if (updates == 499) {
-          await batch.commit();
-          updates = 0;
-        }
-      }
-
-      // Commit remaining
-      if (updates > 0) {
-        await batch.commit();
-      }
-    } catch (e) {
-      debugPrint("Global prune failed: $e");
-    }
-  }
-    
   Future<void> _updateYearlyAndMonthlyStats({
     required String userName,
     required double gross,
@@ -774,6 +753,9 @@ class _ClockOutState extends State<ClockOut> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                if (isClockedIn && (activeBike != null || activeShift != null))
+                  _buildShiftInfoCard(),
 
                 if (isClockedIn == false)
                   Container(

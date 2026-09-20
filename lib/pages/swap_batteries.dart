@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:billkmotolinkltd/pages/widgets/qr_scanner.dart';
-import 'package:billkmotolinkltd/services/config_service.dart';
 import 'package:billkmotolinkltd/services/toast_service.dart';
 import 'package:billkmotolinkltd/utils/utility_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -59,28 +58,18 @@ class SwapBatteriesState extends State<SwapBatteries> {
   String _timeString = "";
   late Timer _timer;
   bool? _isOnline;
-  bool freeAssignment = false;
-  
+
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadFreeAssignment();
 
     _updateTime();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
 
     initializerFunctions();
     checkIsOnline();
-  }
-
-  Future<void> _loadFreeAssignment() async {
-    final value = await ConfigService.getFreeAssignment();
-
-    setState(() {
-      freeAssignment = value;
-    });
   }
 
   Future<void> checkIsOnline() async {
@@ -251,24 +240,9 @@ class SwapBatteriesState extends State<SwapBatteries> {
       final batteryName = data['batteryName'] ?? "Unknown Battery";
       final isBooked = data['isBooked'] ?? false;
       final bookedBy = data['bookedBy'] ?? "another rider.";
-      final storeAssignedRider = data['storeAssignedRider'] ?? "None";
-
-      final isConfirmed = data['confirmedStatus'] ?? true; // default to true if field is missing, to avoid false negatives
-
-      if (freeAssignment == false && isConfirmed == false) {
-        ToastService.error("$batteryName's status hasn't been confirmed. Please try again later.");
-        setState(() => scanningOnload = false);
-        return;
-      }
 
       if (isBooked && bookedBy != userName) {
         ToastService.error("Battery is booked by $bookedBy");
-        setState(() => scanningOnload = false);
-        return;
-      }
-
-      if (freeAssignment == false && storeAssignedRider != userName) {
-        ToastService.warning("$batteryName is reserved. Contact manager.");
         setState(() => scanningOnload = false);
         return;
       }
@@ -300,7 +274,6 @@ class SwapBatteriesState extends State<SwapBatteries> {
 
     final now = DateTime.now();
     final selectedLoc = selectedDestination;
-    final uid = FirebaseAuth.instance.currentUser!.uid;
     final batch = FirebaseFirestore.instance.batch();
 
     try {
@@ -319,11 +292,10 @@ class SwapBatteriesState extends State<SwapBatteries> {
         // update battery state
         batch.update(ref, {
           'assignedRider': onLoad ? userName : "None",
-          'storeAssignedRider': onLoad ? userName : "None",
           'assignedBike': onLoad ? currentBike : "None",
           'confirmedStatus': onLoad ? true : false,
           'isBooked': false,
-          'batteryLocation': onLoad ? "In Motion" : selectedLoc ?? "Warehouse",
+          'batteryLocation': onLoad ? "In Motion" : selectedLoc ?? "Charging Bay",
           'offTime': now,
         });
       }
@@ -331,60 +303,11 @@ class SwapBatteriesState extends State<SwapBatteries> {
       // Update onload batteries (None → assigned)
       for (final battery in scannedOnBatteries) {
         await updateBattery(battery, onLoad: true);
-        
-        // Update corresponding store document
-        final storeQueryOnload = await FirebaseFirestore.instance
-            .collection("store")
-            .where("name", isEqualTo: battery)
-            .limit(1)
-            .get();
-
-        if (storeQueryOnload.docs.isNotEmpty) {
-          final ref = storeQueryOnload.docs.first.reference;
-          final message = "Swapped in by $userName on ${AppDateUtils.formatStandard(now)}.";
-          
-          batch.update(ref, {
-            "assignedTo": userName,
-            "assignedToUid": uid,
-            "movement": "Outgoing",
-            "isAssigned": true,
-            "confirmedStatus": true,
-            "transactions": FieldValue.arrayUnion([{
-              "message": message,
-              "time": now,
-            }]),
-          });
-        }
       }
 
       // Update offload batteries (assigned → None)
       for (final battery in scannedOffBatteries) {
         await updateBattery(battery, onLoad: false);
-        
-        // Update corresponding store document
-        final storeQueryOffload = await FirebaseFirestore.instance
-            .collection("store")
-            .where("name", isEqualTo: battery)
-            .limit(1)
-            .get();
-
-        if (storeQueryOffload.docs.isNotEmpty) {
-          final ref = storeQueryOffload.docs.first.reference;
-          final message = "Swapped out by $userName on ${AppDateUtils.formatStandard(now)}.";
-          
-          batch.update(ref, {
-            "assignedTo": "None",
-            "assignedToUid": "None",
-            "isAssigned": false,
-            "confirmedStatus": false,
-            "movement": "Incoming",
-            "droppedBy": userName,
-            "transactions": FieldValue.arrayUnion([{
-              "message": message,
-              "time": now,
-            }]),
-          });
-        }
       }
 
       /// --- 2. Commit all changes ---

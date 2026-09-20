@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:billkmotolinkltd/pages/absenteesm.dart';
-import 'package:billkmotolinkltd/pages/queued_damages.dart';
-import 'package:billkmotolinkltd/pages/report_damages.dart';
 import 'package:billkmotolinkltd/services/toast_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -37,7 +35,7 @@ import 'pages/splash_screen.dart';
 import 'pages/add_company_calendar.dart';
 import 'pages/devices.dart';
 import 'pages/memo.dart';
-import 'pages/store.dart';
+import 'pages/assignments.dart';
 import 'pages/charge_batteries.dart';
 import 'pages/settings.dart';
 import 'pages/swap_batteries.dart';
@@ -138,7 +136,13 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   int _selectedIndex = 0;
-  bool _isCheckingConnectivity = true;
+
+  // Connectivity state lives here (not in build) so a network blip or an app
+  // resume never tears the page tree down. We start optimistic (online) and only
+  // overlay the "No Internet" screen on top of the scaffold if a check fails.
+  bool _online = true;
+  bool _verifyingConnection = false;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   late AnimationController _controller;
   bool _isExpanded = false;
@@ -146,31 +150,35 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
   String? _ourUID;
   StreamSubscription<DocumentSnapshot>? _userActiveListener;
 
+  // Filled by the single user-doc listener in _setupUserActiveListener(). Because
+  // these live in State, the drawer and the app bar always have the current values
+  // the moment they build (a broadcast stream would not replay them to a drawer
+  // that is built later, which is what hid your menu items).
+  String _userRank = 'Staff';
+  int _notificationCount = 0;
+
   final List<Widget> _pages = [
     Dashboard(), // 0
     ClockIn(), // 1
     SwapBatteries(), // 2
     ChargeBatteries(), // 3
-    ReportDamages(uid: FirebaseAuth.instance.currentUser!.uid), // 4
-    ClockOut(), // 5
-    Corrections(), // 6
-    Batteries(uid: FirebaseAuth.instance.currentUser!.uid), // 7
-    Polls(), // 8
-    CreateBudget(), // 9
-    Requirements(), // 10
-    AssetManager(), // 11
-    UserManager(), // 12
-    Profiles(), // 13
-    CreatePoll(), // 14
-    ActivityScheduler(), // 15
-    AddToCalendar(), // 16
-    Reports(), // 17
-    // Absenteeism(), // 18
-    QueuedDamages(), // 18
-    CreateMemo(), // 19
-    CreateAndManageStore(), // 20
-    Devices(), // 21
-    UserSettings(), // 22
+    ClockOut(), // 4
+    Corrections(), // 5
+    Batteries(uid: FirebaseAuth.instance.currentUser!.uid), // 6
+    Polls(), // 7
+    CreateBudget(), // 8
+    Requirements(), // 9
+    AssetManager(), // 10
+    UserManager(), // 11
+    Profiles(), // 12
+    CreatePoll(), // 13
+    ActivityScheduler(), // 14
+    AddToCalendar(), // 15
+    Reports(), // 16
+    CreateMemo(), // 17
+    Assignments(), // 18
+    Devices(), // 19
+    UserSettings(), // 20
   ];
 
   final List<String> _titles = const [
@@ -178,7 +186,6 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
     'Clock In',
     'Swap Batteries',
     'Charge Batteries',
-    'Report Damages',
     'Clock Out',
     'Correction',
     'Batteries',
@@ -192,23 +199,20 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
     'Activity Scheduler',
     'Add to Calendar',
     'Reports',
-    // 'Absenteesm',
-    'Queued Damages',
     'Memo',
-    'Warehouse',
+    'Assignments',
     'Devices',
     'Settings',
   ];
 
   final Map<String, List<int>> _rolePermissions = {
     'Staff': [0],
-    'Rider': [0, 1, 2, 3, 4, 5, 6, 7, 8, 22],
-    'Manager': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21],
-    'Systems, IT': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
-    'Technician': [0, 18, 22],
-    'Store Keeper': [0, 20, 22],
-    'Human Resource': [0, 9, 22],
-    'CEO': [0, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22],
+    'Rider': [0, 1, 2, 3, 4, 5, 6, 7, 20],
+    'Manager': [0, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 18, 20],
+    'Systems, IT': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+    'Technician': [0, 20],
+    'Human Resource': [0, 8, 20],
+    'CEO': [0, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 18, 19, 20],
   };
 
   void _setupUserActiveListener() async {
@@ -225,6 +229,15 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
     _userActiveListener = userDoc.listen((snapshot) async {
       if (snapshot.exists) {
         final data = snapshot.data();
+        final rank = data?['userRank']?.toString() ?? 'Staff';
+        final count = (data?['numberOfNotifications'] as num?)?.toInt() ?? 0;
+        if (mounted && (rank != _userRank || count != _notificationCount)) {
+          setState(() {
+            _userRank = rank;
+            _notificationCount = count;
+          });
+        }
+
         final isActive = data?['isActive'] as bool? ?? true;
 
         if (!isActive) {
@@ -238,20 +251,20 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _initializeApp();
-  }
+    WidgetsBinding.instance.addObserver(this);
 
-  Future<void> _initializeApp() async {
-    await _checkAppVersion();
-    setState(() => _isCheckingVersion = false);
-
-    _setupUserActiveListener();
-    _checkAppVersion();
-    _setupUserActiveListener();
     _controller = AnimationController(duration: const Duration(milliseconds: 400), vsync: this);
     _startPulsing();
-    _checkInitialConnectivity();
-    WidgetsBinding.instance.addObserver(this);
+
+    // Each of these used to run twice (the user listener leaked a subscription and
+    // the version check hit Firestore twice). Once each is enough.
+    _setupUserActiveListener();
+    _checkAppVersion();
+
+    // React to network changes in the background instead of rebuilding the UI
+    // around a FutureBuilder.
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((_) => _verifyConnection());
+    _verifyConnection();
   }
 
   bool _isCheckingVersion = true;
@@ -273,9 +286,11 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
         _requiredVersion = doc.data()?['app_version'] as String?;
 
         if (_requiredVersion != null && _requiredVersion != _currentVersion) {
-          setState(() {
-            _appOutdated = true;
-          });
+          if (mounted) {
+            setState(() {
+              _appOutdated = true;
+            });
+          }
           return;
         }
       }
@@ -382,7 +397,7 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkInitialConnectivity();
+      _verifyConnection();
     }
   }
 
@@ -391,6 +406,7 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
     _controller.dispose();
     _animationTimer?.cancel();
     _userActiveListener?.cancel();
+    _connectivitySub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -409,16 +425,32 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
         : Colors.white;
   }
 
-  Future<void> _checkInitialConnectivity() async {
-    final connectivity = Connectivity();
-    final results = await connectivity.checkConnectivity();
-    final hasNetwork = results.any((result) => result != ConnectivityResult.none);
-
-    if (!hasNetwork || !await _isOnline()) {
-      if (mounted) setState(() => _isCheckingConnectivity = false);
-    } else {
-      if (mounted) setState(() => _isCheckingConnectivity = false);
+  /// Checks connectivity in the background and only calls setState when the
+  /// online/offline answer actually CHANGES. No spinner, no widget swap, so the
+  /// current page keeps its state.
+  Future<void> _verifyConnection() async {
+    if (_verifyingConnection) return;
+    _verifyingConnection = true;
+    try {
+      var online = await _hasInternet();
+      if (!online) {
+        // The network is often not ready for a moment after resume or a
+        // Wi-Fi <-> mobile data switch. Give it one more shot before we block the UI.
+        await Future.delayed(const Duration(seconds: 2));
+        online = await _hasInternet();
+      }
+      if (mounted && online != _online) {
+        setState(() => _online = online);
+      }
+    } finally {
+      _verifyingConnection = false;
     }
+  }
+
+  Future<bool> _hasInternet() async {
+    final results = await Connectivity().checkConnectivity();
+    if (results.every((result) => result == ConnectivityResult.none)) return false;
+    return _isOnline();
   }
 
   Widget _buildBottomActions(BuildContext context) {
@@ -492,12 +524,6 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    if (_isCheckingConnectivity) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
     if (_isCheckingVersion) {
       return const Scaffold(
         body: Center(
@@ -517,393 +543,332 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
       return _buildVersionMismatchDialog(theme);
     }
 
-    return StreamBuilder<List<ConnectivityResult>>(
-      stream: Connectivity().onConnectivityChanged,
-      initialData: const [ConnectivityResult.none],
-      builder: (context, connectivitySnapshot) {
-        if (connectivitySnapshot.data == null) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
-        }
+    // The Scaffold is ALWAYS in the tree from here on. The "No Internet" screen is
+    // just an overlay on top of it, so the current page is never disposed and
+    // rebuilt when connectivity is re-checked.
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    theme.colorScheme.primary,
+                    theme.colorScheme.primary.withValues(alpha: 0.8),
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _titles[_selectedIndex],
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            elevation: 0,
+            backgroundColor: theme.colorScheme.surface.withValues(alpha: isDark ? 0.95 : 0.9),
+            shadowColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+            actions: [
+              Builder(
+                builder: (context) {
+                  final notificationCount = _notificationCount;
 
-        final hasNetwork = connectivitySnapshot.data!.any((result) =>
-            result != ConnectivityResult.none);
-
-        return FutureBuilder<bool>(
-          future: hasNetwork ? _isOnline() : Future.value(false),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(body: Center(child: CircularProgressIndicator()));
-            }
-
-            final isOnline = snapshot.data ?? false;
-            if (!isOnline) {
-              return _buildNoInternetPage(theme, () {
-                setState(() => _isCheckingConnectivity = true);
-              }, () => SystemNavigator.pop());
-            }
-
-            return Stack(
-              children: [
-                Scaffold(
-                  appBar: AppBar(
-                    title: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            theme.colorScheme.primary,
-                            theme.colorScheme.primary.withValues(alpha: 0.8),
-                          ],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        _titles[_selectedIndex],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
-                    elevation: 0,
-                    backgroundColor: theme.colorScheme.surface.withValues(alpha: isDark ? 0.95 : 0.9),
-                    shadowColor: theme.colorScheme.primary.withValues(alpha: 0.2),
-                    actions: [
-                      StreamBuilder<DocumentSnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(FirebaseAuth.instance.currentUser?.uid)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          final notificationCount = snapshot.data?.data() is Map<String, dynamic>
-                              ? (snapshot.data!.data() as Map<String, dynamic>)['numberOfNotifications'] ?? 0
-                              : 0;
-
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 16),
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                IconButton(
-                                  icon: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [theme.colorScheme.primary.withValues(alpha: 0.2), Colors.transparent],
-                                      ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.notifications_outlined,
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => const AppNotifications()),
-                                    );
-                                  },
-                                ),
-                                if (notificationCount > 0)
-                                  Positioned(
-                                    right: 0,
-                                    top: 0,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(builder: (context) => const AppNotifications()),
-                                        );
-                                      },
-                                      child: AnimatedBuilder(
-                                        animation: _controller,
-                                        builder: (context, child) {
-                                          return Transform.scale(
-                                            scale: 0.8 + (_controller.value * 0.15),
-                                            child: Container(
-                                              padding: const EdgeInsets.all(6),
-                                              decoration: BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  colors: [Colors.red.shade500, Colors.red.shade700],
-                                                ),
-                                                shape: BoxShape.circle,
-                                                border: Border.all(color: Colors.white, width: 2),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.red.withValues(alpha: 0.4),
-                                                    blurRadius: 12,
-                                                    offset: const Offset(0, 4),
-                                                  ),
-                                                ],
-                                              ),
-                                              constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-                                              child: Text(
-                                                notificationCount > 99 ? '99+' : notificationCount.toString(),
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  height: 1.1,
-                                                ),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [theme.colorScheme.primary.withValues(alpha: 0.2), Colors.transparent],
+                              ),
+                              shape: BoxShape.circle,
                             ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-
-                  drawer: Drawer(
-                    elevation: 16,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: isDark
-                              ? [
-                                  theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
-                                  theme.colorScheme.surfaceContainer.withValues(alpha: 0.9),
-                                  theme.colorScheme.surface.withValues(alpha: 0.95),
-                                ]
-                              : [
-                                  theme.colorScheme.primary.withValues(alpha: 0.15),
-                                  theme.colorScheme.primaryContainer.withValues(alpha: 0.1),
-                                  theme.colorScheme.surface.withValues(alpha: 0.98),
-                                ],
-                          stops: const [0.0, 0.4, 1.0],
-                        ),
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.colorScheme.primary.withValues(alpha: isDark ? 0.3 : 0.15),
-                            blurRadius: 32,
-                            offset: const Offset(0, 16),
+                            child: Icon(
+                              Icons.notifications_outlined,
+                              color: theme.colorScheme.onSurfaceVariant,
+                              size: 24,
+                            ),
                           ),
-                        ],
-                      ),
-                      child: SafeArea(
-                        child: Column(
-                          children: [
-                            // Header
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.fromLTRB(28, 40, 28, 32),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    theme.colorScheme.primary.withValues(alpha: 0.95),
-                                    theme.colorScheme.primaryContainer,
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: const BorderRadius.only(
-                                  bottomLeft: Radius.circular(32),
-                                  bottomRight: Radius.circular(32),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: theme.colorScheme.primary.withValues(alpha: 0.4),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: 92,
-                                    height: 92,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [Colors.white.withValues(alpha: 0.3), Colors.white.withValues(alpha: 0.1)],
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const AppNotifications()),
+                            );
+                          },
+                        ),
+                        if (notificationCount > 0)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const AppNotifications()),
+                                );
+                              },
+                              child: AnimatedBuilder(
+                                animation: _controller,
+                                builder: (context, child) {
+                                  return Transform.scale(
+                                    scale: 0.8 + (_controller.value * 0.15),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [Colors.red.shade500, Colors.red.shade700],
+                                        ),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.white, width: 2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.red.withValues(alpha: 0.4),
+                                            blurRadius: 12,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
                                       ),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.2),
-                                          blurRadius: 16,
-                                          offset: const Offset(0, 6),
+                                      constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                                      child: Text(
+                                        notificationCount > 99 ? '99+' : notificationCount.toString(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          height: 1.1,
                                         ),
-                                      ],
+                                        textAlign: TextAlign.center,
+                                      ),
                                     ),
-                                    child: Image.asset(
-                                      'assets/logo.png',
-                                      fit: BoxFit.contain,
-                                      color: isDark ? Colors.white : null,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  StreamBuilder<DocumentSnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('users')
-                                        .doc(FirebaseAuth.instance.currentUser?.uid)
-                                        .snapshots(),
-                                    builder: (context, snapshot) {
-                                      final userRank = snapshot.data?['userRank']?.toString() ?? 'Staff';
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(colors: [Colors.white.withValues(alpha: 0.3), Colors.white.withValues(alpha: 0.1)]),
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                        child: Text(
-                                          userRank.toUpperCase(),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: 1.2,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Nav items
-                            Expanded(
-                              child: StreamBuilder<DocumentSnapshot>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(FirebaseAuth.instance.currentUser?.uid)
-                                    .snapshots(),
-                                builder: (context, snapshot) {
-                                  String userRank = 'Staff';
-                                  if (snapshot.hasData && snapshot.data!.exists) {
-                                    userRank = snapshot.data!['userRank']?.toString() ?? 'Staff';
-                                  }
-
-                                  final visibleIndices = _getVisibleIndices(userRank);
-
-                                  return ListView.separated(
-                                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
-                                    itemCount: visibleIndices.length,
-                                    separatorBuilder: (context, index) => const SizedBox(height: 8),
-                                    itemBuilder: (context, listIndex) {
-                                      final index = visibleIndices[listIndex];
-                                      final isSelected = _selectedIndex == index;
-
-                                      return AnimatedContainer(
-                                        duration: const Duration(milliseconds: 250),
-                                        height: 60,
-                                        margin: const EdgeInsets.symmetric(vertical: 2),
-                                        decoration: BoxDecoration(
-                                          gradient: isSelected
-                                              ? LinearGradient(
-                                                  colors: [
-                                                    theme.colorScheme.primary.withValues(alpha: 0.2),
-                                                    Colors.transparent,
-                                                  ],
-                                                )
-                                              : null,
-                                          borderRadius: BorderRadius.circular(20),
-                                          boxShadow: isSelected
-                                              ? [
-                                                  BoxShadow(
-                                                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                                                    blurRadius: 16,
-                                                    offset: const Offset(0, 4),
-                                                  ),
-                                                ]
-                                              : null,
-                                        ),
-                                        child: Material(
-                                          color: Colors.transparent,
-                                          child: InkWell(
-                                            borderRadius: BorderRadius.circular(20),
-                                            onTap: () => _onDrawerItemTapped(index),
-                                            child: Padding(
-                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                              child: Row(
-                                                children: [
-                                                  Container(
-                                                    width: 48,
-                                                    height: 48,
-                                                    padding: EdgeInsets.zero,
-                                                    decoration: BoxDecoration(
-                                                      gradient: LinearGradient(
-                                                        colors: isSelected
-                                                            ? [theme.colorScheme.primary, theme.colorScheme.primary.withValues(alpha: 0.7)]
-                                                            : [theme.colorScheme.primary.withValues(alpha: 0.15), Colors.transparent],
-                                                      ),
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                    child: Icon(
-                                                      _getDrawerIcon(index),
-                                                      color: isSelected ? Colors.white : theme.colorScheme.primary,
-                                                      size: 22,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 16),
-                                                  Expanded(
-                                                    child: Text(
-                                                      _titles[index],
-                                                      style: theme.textTheme.titleMedium?.copyWith(
-                                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                                                        color: isSelected
-                                                            ? Colors.white
-                                                            : theme.colorScheme.onSurface,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  if (isSelected)
-                                                    Container(
-                                                      padding: const EdgeInsets.all(4),
-                                                      decoration: BoxDecoration(
-                                                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                      child: const Icon(
-                                                        Icons.chevron_right_rounded,
-                                                        color: Colors.white,
-                                                        size: 18,
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
                                   );
                                 },
                               ),
                             ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
 
-                            _buildBottomActions(context),
-                          ],
-                        ),
+          drawer: Drawer(
+            elevation: 8,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            backgroundColor: theme.colorScheme.surface,
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // ---------------------------------------------------------------
+                  // Header: flat two-stop brand gradient. Logo keeps its own
+                  // rounded-square shape - clipped explicitly with ClipRRect rather
+                  // than relying on the PNG's alpha. The shadow is a separate
+                  // rounded-rect Container behind it with no fill color, sized and
+                  // radius-matched to the image.
+                  // ---------------------------------------------------------------
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(24, 36, 24, 28),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.primary.withValues(alpha: 0.82),
+                        ],
                       ),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(28),
+                        bottomRight: Radius.circular(28),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Builder(
+                          builder: (context) {
+                            // Match this to your actual asset's corner radius
+                            // (proportionally) so the clip and the shadow line up
+                            // with the art instead of guessing.
+                            const double logoSize = 80;
+                            const double logoRadius = 18;
+
+                            return Container(
+                              width: logoSize,
+                              height: logoSize,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(logoRadius),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.28),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(logoRadius),
+                                child: Image.asset(
+                                  'assets/logo.png',
+                                  fit: BoxFit.cover,
+                                  width: logoSize,
+                                  height: logoSize,
+                                  errorBuilder: (context, error, stackTrace) => Container(
+                                    color: Colors.white.withValues(alpha: 0.15),
+                                    child: const Icon(
+                                      Icons.school_rounded,
+                                      color: Colors.white,
+                                      size: 32,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        Builder(
+                          builder: (context) {
+                            final userRank = _userRank;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Text(
+                                userRank.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
 
-                  body: _pages[_selectedIndex],
-                ),
-              ],
-            );
-          },
-        );
-      },
+                  // ---------------------------------------------------------------
+                  // Nav items: each row gets its own icon container - lightly tinted
+                  // when unselected, solid brand color when selected - plus a soft
+                  // shadow and a trailing chevron on the selected row only.
+                  // ---------------------------------------------------------------
+                  Expanded(
+                    child: Builder(
+                      builder: (context) {
+                        final visibleIndices = _getVisibleIndices(_userRank);
+
+                        return ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                          itemCount: visibleIndices.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 6),
+                          itemBuilder: (context, listIndex) {
+                            final index = visibleIndices[listIndex];
+                            final isSelected = _selectedIndex == index;
+
+                            return Material(
+                              color: isSelected
+                                  ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(16),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () => _onDrawerItemTapped(index),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: isSelected
+                                      ? BoxDecoration(
+                                          borderRadius: BorderRadius.circular(16),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: theme.colorScheme.primary.withValues(alpha: 0.22),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ],
+                                        )
+                                      : null,
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? theme.colorScheme.primary
+                                              : theme.colorScheme.primary.withValues(alpha: 0.10),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Icon(
+                                          _getDrawerIcon(index),
+                                          color: isSelected ? Colors.white : theme.colorScheme.primary,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Text(
+                                          _titles[index],
+                                          style: theme.textTheme.titleSmall?.copyWith(
+                                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                            color: isSelected
+                                                ? theme.colorScheme.primary
+                                                : theme.colorScheme.onSurface.withValues(alpha: 0.85),
+                                          ),
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        Icon(
+                                          Icons.chevron_right_rounded,
+                                          color: theme.colorScheme.primary,
+                                          size: 20,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+
+                  _buildBottomActions(context),
+                ],
+              ),
+            ),
+          ),
+
+          body: _pages[_selectedIndex],
+        ),
+
+        // Offline overlay: sits ON TOP of the scaffold instead of replacing it.
+        if (!_online)
+          Positioned.fill(
+            child: _buildNoInternetPage(
+              theme,
+              _verifyConnection,
+              () => SystemNavigator.pop(),
+            ),
+          ),
+      ],
     );
   }
 
@@ -966,6 +931,14 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   TextButton.icon(
+                    onPressed: onRefresh,
+                    icon: const Icon(Icons.refresh, color: Colors.white),
+                    label: const Text('Retry', style: TextStyle(color: Colors.white, fontSize: 16)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    ),
+                  ),
+                  TextButton.icon(
                     onPressed: onQuit,
                     icon: const Icon(Icons.close, color: Colors.white70),
                     label: const Text('Quit', style: TextStyle(color: Colors.white70, fontSize: 16)),
@@ -988,26 +961,23 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
       case 1: return Icons.add_link_outlined;
       case 2: return Icons.swap_horiz;
       case 3: return Icons.battery_charging_full;
-      case 4: return Icons.precision_manufacturing_rounded;
-      case 5: return Icons.cloud_sync_sharp;
-      case 6: return Icons.webhook_sharp;
-      case 7: return Icons.battery_4_bar_outlined;
-      case 8: return Icons.poll_rounded;
-      case 9: return Icons.restaurant_menu_rounded;
-      case 10: return Icons.add_comment_sharp;
-      case 11: return Icons.electric_bike;
-      case 12: return Icons.account_tree_rounded;
-      case 13: return Icons.supervised_user_circle_rounded;
-      case 14: return Icons.how_to_vote_rounded;
-      case 15: return Icons.timer;
-      case 16: return Icons.calendar_month_rounded;
-      case 17: return Icons.bar_chart_rounded;
-      // case 18: return Icons.person_off;
-      case 18: return Icons.precision_manufacturing_rounded;
-      case 19: return Icons.support_agent_rounded;
-      case 20: return Icons.warehouse_rounded;
-      case 21: return Icons.phone_android;
-      case 22: return Icons.settings;
+      case 4: return Icons.cloud_sync_sharp;
+      case 5: return Icons.webhook_sharp;
+      case 6: return Icons.battery_4_bar_outlined;
+      case 7: return Icons.poll_rounded;
+      case 8: return Icons.restaurant_menu_rounded;
+      case 9: return Icons.add_comment_sharp;
+      case 10: return Icons.electric_bike;
+      case 11: return Icons.account_tree_rounded;
+      case 12: return Icons.supervised_user_circle_rounded;
+      case 13: return Icons.how_to_vote_rounded;
+      case 14: return Icons.timer;
+      case 15: return Icons.calendar_month_rounded;
+      case 16: return Icons.bar_chart_rounded;
+      case 17: return Icons.support_agent_rounded;
+      case 18: return Icons.assignment_ind_rounded;
+      case 19: return Icons.phone_android;
+      case 20: return Icons.settings;
       default: return Icons.circle;
     }
   }

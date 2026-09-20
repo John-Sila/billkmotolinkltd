@@ -37,7 +37,7 @@ class _UserManagerState extends State<UserManager> {
   String? role;
 
   final List<String> genders = ["Male", "Female"];
-  final List<String> roles = ["Manager", "Rider", "Human Resource", "Store Keeper", "Technician"];
+  final List<String> roles = ["Manager", "Rider", "Human Resource", "Technician"];
   final InputBorder fullBorder = OutlineInputBorder(
     borderRadius: BorderRadius.zero,
     borderSide: const BorderSide(width: 1, color: Colors.grey),

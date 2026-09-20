@@ -332,51 +332,16 @@ class _UserSettingsState extends State<UserSettings> {
   ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-    
-    final primaryError = colorScheme.error;
-    
-    final containerGradient = LinearGradient(
-      colors: [
-        primaryError.withValues(alpha: 0.12),
-        primaryError.withValues(alpha: isDark ? 0.3 : 0.08).withValues(alpha: 0.8),
-        primaryError.withValues(alpha: 0.08),
-      ],
-    );
-    
-    final iconGradient = RadialGradient(
-      colors: [primaryError.withValues(alpha: 0.8), primaryError.withValues(alpha: 1.0)],
-    );
-    
-    final textGradient = RadialGradient(
-      colors: [primaryError.withValues(alpha: 0.9), primaryError.withValues(alpha: 1.0)],
-    );
-    
-    final arrowGradient = RadialGradient(
-      colors: [primaryError.withValues(alpha: 0.7), primaryError.withValues(alpha: 0.9)],
-    );
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        gradient: containerGradient,
+        color: colorScheme.errorContainer.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: primaryError.withValues(alpha: isDark ? 0.5 : 0.35),
-          width: 1.5,
+          color: colorScheme.error.withValues(alpha: 0.2),
+          width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: primaryError.withValues(alpha: isDark ? 0.35 : 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: primaryError.withValues(alpha: isDark ? 0.2 : 0.12),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -384,101 +349,43 @@ class _UserSettingsState extends State<UserSettings> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
-          splashColor: primaryError.withValues(alpha: isDark ? 0.35 : 0.25),
-          highlightColor: primaryError.withValues(alpha: isDark ? 0.2 : 0.12),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          splashColor: colorScheme.error.withValues(alpha: 0.1),
+          highlightColor: colorScheme.error.withValues(alpha: 0.05),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                // Adaptive Icon
+                // Clean Icon Container
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    gradient: iconGradient,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: primaryError.withValues(alpha: isDark ? 0.6 : 0.5),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    color: colorScheme.error.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     icon,
-                    color: Colors.white,
+                    color: colorScheme.error,
                     size: 20,
-                    shadows: [
-                      Shadow(
-                        color: (isDark ? Colors.black : Colors.black87).withValues(alpha: 0.5),
-                        offset: const Offset(0, 1),
-                        blurRadius: 4,
-                      ),
-                    ],
                   ),
                 ),
                 const SizedBox(width: 16),
-                
-                // Adaptive Title
+
+                // Title
                 Expanded(
-                  child: ShaderMask(
-                    shaderCallback: (bounds) => textGradient.createShader(bounds),
-                    blendMode: BlendMode.srcATop,
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        letterSpacing: 0.2,
-                        height: 1.2,
-                        shadows: [
-                          Shadow(
-                            color: (isDark ? Colors.black : Colors.black87).withValues(alpha: 0.5),
-                            offset: const Offset(0, 2),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
+                  child: Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onErrorContainer,
                     ),
                   ),
                 ),
-                
-                // Adaptive Arrow
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 1200),
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  builder: (context, value, child) {
-                    return Transform.translate(
-                      offset: Offset(value * 3, 0),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          gradient: arrowGradient,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: primaryError.withValues(alpha: isDark ? 0.7 : 0.6),
-                              blurRadius: 10,
-                              offset: const Offset(2, 2),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          color: Colors.white,
-                          size: 14,
-                          shadows: [
-                            Shadow(
-                              color: (isDark ? Colors.black : Colors.black54).withValues(alpha: 0.4),
-                              offset: const Offset(1, 1),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+
+                // Simple Arrow Indicator
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: colorScheme.error.withValues(alpha: 0.6),
+                  size: 16,
                 ),
               ],
             ),

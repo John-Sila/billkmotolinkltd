@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:billkmotolinkltd/pages/widgets/qr_scanner.dart';
-import 'package:billkmotolinkltd/services/config_service.dart';
 import 'package:billkmotolinkltd/services/toast_service.dart';
 import 'package:billkmotolinkltd/utils/utility_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -57,7 +56,6 @@ class ChargeBatteriesState extends State<ChargeBatteries> {
   late Timer _timer;
   bool? _isOnline;
   bool isLoading = true;
-  bool freeAssignment = false;
 
   Future<void> checkIsOnline() async {
     final online = await isOnline();
@@ -82,7 +80,6 @@ class ChargeBatteriesState extends State<ChargeBatteries> {
   @override
   void initState() {
     super.initState();
-    _loadFreeAssignment();
 
     _updateTime();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
@@ -98,13 +95,6 @@ class ChargeBatteriesState extends State<ChargeBatteries> {
     });
   }
 
-  Future<void> _loadFreeAssignment() async {
-    final value = await ConfigService.getFreeAssignment();
-
-    setState(() {
-      freeAssignment = value;
-    });
-  }
   Future<void> initializerFunctions() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
@@ -183,8 +173,7 @@ class ChargeBatteriesState extends State<ChargeBatteries> {
       final data = query.docs.first.data();
       final assignedRider = data['assignedRider']?.toString() ?? "None";
       final batteryName = data['batteryName'] ?? "Unknown Battery";
-      final storeAssignedRider = data['storeAssignedRider'] ?? "None";
-      
+
       if (assignedRider == userName) {
         setState(() {
           scannedBatteries.add(batteryName);
@@ -232,7 +221,6 @@ class ChargeBatteriesState extends State<ChargeBatteries> {
           'assignedRider': "None",
           'assignedBike': "None",
           'confirmedStatus': false,
-          'storeAssignedRider': "None",
           'batteryLocation': "Charging at $selectedLoc",
           'offTime': now,
         });
@@ -243,40 +231,7 @@ class ChargeBatteriesState extends State<ChargeBatteries> {
         await updateBattery(battery, onCharge: true);
       }
 
-      /// 2. Update store documents for the scanned batteries only
-      for (final batteryName in scannedBatteries) {
-        // Find the exact store document where batteryName matches the scanned battery
-        final storeQuery = await FirebaseFirestore.instance
-            .collection("store")
-            .where("name", isEqualTo: batteryName)
-            .limit(1)
-            .get();
-
-        if (storeQuery.docs.isNotEmpty) {
-          final ref = storeQuery.docs.first.reference;
-          final message =
-              "Dropped to charge by $userName on ${AppDateUtils.formatStandard(now)}. Awaiting confirmation.";
-
-          batch.update(ref, {
-            "assignedTo": "None",
-            "assignedToUid": "None",
-            "isAssigned": false,
-            "confirmedStatus": false,
-            "movement": "Incoming",
-            "droppedBy": userName,
-            "transactions": FieldValue.arrayUnion([
-              {
-                "message": message,
-                "time": now,
-              }
-            ]),
-          });
-        }
-      }
-
-
-
-      /// 3. Commit all changes
+      /// 2. Commit all changes
       await batch.commit();
 
       ToastService.success("Batteries successfully sent to charge");

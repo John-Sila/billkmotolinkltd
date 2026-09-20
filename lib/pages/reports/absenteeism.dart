@@ -208,7 +208,7 @@ class _AbsenteeismState extends State<Absenteeism> {
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Absenteeism', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Attendance Rota', style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
         backgroundColor: theme.colorScheme.surface,
         foregroundColor: theme.colorScheme.onSurface,

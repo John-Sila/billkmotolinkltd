@@ -1,6 +1,7 @@
 import 'package:billkmotolinkltd/services/toast_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AssetManager extends StatefulWidget {
   const AssetManager({super.key});
@@ -21,10 +22,29 @@ class _AssetManagerState extends State<AssetManager> {
   List<String> _destinations = [];
   Map<String, dynamic> _bikes = {};
 
+  String _userRank = 'Staff';
+  bool get _canAddBatteries => _userRank == 'Systems, IT';
+
   @override
   void initState() {
     super.initState();
     _loadGeneralVariables();
+    _loadUserRank();
+  }
+
+  Future<void> _loadUserRank() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final rank = doc.data()?['userRank']?.toString() ?? 'Staff';
+      if (mounted) {
+        setState(() => _userRank = rank);
+      }
+    } catch (_) {
+      // Leave the default (no access) if this fails
+    }
   }
 
   Future<void> _loadGeneralVariables() async {
@@ -85,6 +105,11 @@ class _AssetManagerState extends State<AssetManager> {
   }
 
   Future<void> _addBattery() async {
+    if (!_canAddBatteries) {
+      _showSnackBar('Only IT can add batteries.', Colors.red);
+      return;
+    }
+
     final batteryName = _batteryController.text.trim();
     final destination = _selectedDestination;
 
@@ -599,55 +624,81 @@ class _AssetManagerState extends State<AssetManager> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Add Battery Section
+            // Add Battery Section — IT only
             _buildSection(theme, 'Add Battery', [
-              DropdownButtonFormField<String>(
-                initialValue: _selectedDestination,
-                hint: const Text('Select location'),
-                items: _destinations
-                    .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedDestination = v),
-                decoration: InputDecoration(
-                  labelText: 'Location',
-                  prefixIcon: Icon(Icons.location_on, color: theme.colorScheme.primary),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _batteryController,
-                decoration: InputDecoration(
-                  labelText: 'Battery Name',
-                  prefixIcon: Icon(Icons.battery_full, color: theme.colorScheme.primary),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: addingBattery ? null : _addBattery,
-                  icon: addingBattery
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.add),
-                  label: Text(addingBattery ? 'Adding Battery...' : 'Add Battery'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              if (!_canAddBatteries)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: theme.colorScheme.outlineVariant),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.lock_outline, color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Only IT can add new batteries.',
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else ...[
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedDestination,
+                  hint: const Text('Select location'),
+                  items: _destinations
+                      .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedDestination = v),
+                  decoration: InputDecoration(
+                    labelText: 'Location',
+                    prefixIcon: Icon(Icons.location_on, color: theme.colorScheme.primary),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   ),
                 ),
-              ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _batteryController,
+                  decoration: InputDecoration(
+                    labelText: 'Battery Name',
+                    prefixIcon: Icon(Icons.battery_full, color: theme.colorScheme.primary),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: addingBattery ? null : _addBattery,
+                    icon: addingBattery
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.add),
+                    label: Text(addingBattery ? 'Adding Battery...' : 'Add Battery'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                  ),
+                ),
+              ],
             ]),
 
             const SizedBox(height: 32),

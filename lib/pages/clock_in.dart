@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:billkmotolinkltd/pages/widgets/qr_scanner.dart';
-import 'package:billkmotolinkltd/services/config_service.dart';
 import 'package:billkmotolinkltd/services/toast_service.dart';
 import 'package:billkmotolinkltd/utils/utility_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -36,37 +35,11 @@ extension DateTimeFormatting on DateTime {
   }
 }
 
-class _AssignmentResult {
-  final bool freeAssignment;
-  final List<_AssignedItem> assignedItems;
-
-  _AssignmentResult({
-    required this.freeAssignment,
-    required this.assignedItems,
-  });
-}
-
-class _AssignedItem {
-  final String id;
-  final String name;
-  final String assignedTo;
-
-  _AssignedItem({
-    required this.id,
-    required this.name,
-    required this.assignedTo,
-  });
-}
-
 class _ClockInState extends State<ClockIn> {
   String? selectedBike;
   Map<String, dynamic> bikes = {}; // all bikes from general_variables
-  List<String> bikeNamesForDropdown = []; // only unassigned bike
-  List<String> assignedBikeIds = [];                // IDs from store
-  Map<String, String> assignedBikeNameById = {};
 
   bool scanning = false;
-  bool freeAssignment = false;
 
   List<String> scannedBatteries = [];      // Stores battery names
   List<String> scannedBatteryCodes = [];   // Stores cleaned QR codes
@@ -81,51 +54,82 @@ class _ClockInState extends State<ClockIn> {
   late Timer _timer;
   bool? _isOnline;
   bool isLoading = true;
-  late final Future<_AssignmentResult> _assignmentFuture;
   late Future<Map<String, dynamic>> _bikesDisplayFuture;
-  bool _assignmentSideEffectsRan = false;
 
 
   final _firestore = FirebaseFirestore.instance;
 
-  Future<_AssignmentResult> _loadAssignmentStatus({
-    required String currentUserUid,
-  }) async {
-    // 1. Get freeAssignment flag
-    final generalDoc = await _firestore
-        .collection('general')
-        .doc('general_variables')
-        .get();
+  /// The shift ('day' | 'night') this rider was assigned to on the Assignments
+  /// page. null = not set yet (e.g. assigned before shifts existed).
+  String? assignedShift;
 
-    final bool freeAssignment =
-        (generalDoc.data()?['freeAssignment'] as bool?) ?? false;
+  /// Reads the rider's single assigned bike + shift, set via the Assignments page.
+  Future<void> _loadAssignedBike() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
 
-    // If true, we don't need to query store
-    if (freeAssignment) {
-      return _AssignmentResult(
-        freeAssignment: true,
-        assignedItems: const [],
-      );
+    final doc = await _firestore.collection('users').doc(uid).get();
+    final data = doc.data() ?? {};
+
+    setState(() {
+      selectedBike = data['assignedBikeName']?.toString();
+      if (selectedBike != null && selectedBike!.isEmpty) selectedBike = null;
+
+      final rawShift = data['assignedShift']?.toString().trim().toLowerCase();
+      assignedShift =
+          (rawShift == 'day' || rawShift == 'night') ? rawShift : null;
+    });
+  }
+
+  String _shiftText() {
+    switch (assignedShift) {
+      case 'day':
+        return 'Day shift';
+      case 'night':
+        return 'Night shift';
+      default:
+        return 'Shift not set';
     }
+  }
 
-    // 2. Otherwise, fetch store items assigned to this rider (by UID)
-    final storeSnapshot = await _firestore
-        .collection('store')
-        .where('assignedToUid', isEqualTo: currentUserUid)
-        .get();
+  /// Small pill showing the shift on the assigned-bike card.
+  Widget _buildShiftChip() {
+    final isSet = assignedShift != null;
+    final isNight = assignedShift == 'night';
 
-    final assignedItems = storeSnapshot.docs.map((doc) {
-      final data = doc.data();
-      return _AssignedItem(
-        id: doc.id,
-        name: data['itemName'] ?? data['name'] ?? doc.id,
-        assignedTo: data['assignedTo'] ?? '',
-      );
-    }).toList();
+    final Color color = !isSet
+        ? Colors.orange
+        : (isNight ? Colors.indigo[400]! : Colors.amber[800]!);
+    final IconData icon = !isSet
+        ? Icons.help_outline_rounded
+        : (isNight ? Icons.nightlight_round : Icons.wb_sunny_rounded);
+    final String text =
+        isSet ? _shiftText() : 'Shift not set — contact your admin';
 
-    return _AssignmentResult(
-      freeAssignment: false,
-      assignedItems: assignedItems,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -133,18 +137,8 @@ class _ClockInState extends State<ClockIn> {
   void initState() {
     super.initState();
     _bikesDisplayFuture = fetchBikes();
-    final String userUid = FirebaseAuth.instance.currentUser?.uid ?? "";
-    _assignmentFuture = _loadAssignmentStatus(currentUserUid: userUid);
 
-    _assignmentFuture.then((result) {
-      if (!result.freeAssignment) {
-        loadAssignedBikesFromStore(userName: userName);
-      } else {
-        loadBikes();
-      }
-    });
-
-    _loadFreeAssignment();
+    _loadAssignedBike();
 
     _updateTime();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
@@ -152,14 +146,6 @@ class _ClockInState extends State<ClockIn> {
     checkClockInStatus();
     checkIsOnline();
     loadBikes();
-  }
-
-  Future<void> _loadFreeAssignment() async {
-    final value = await ConfigService.getFreeAssignment();
-
-    setState(() {
-      freeAssignment = value;
-    });
   }
 
   Future<void> checkIsOnline() async {
@@ -181,51 +167,6 @@ class _ClockInState extends State<ClockIn> {
     }
   }
 
-  Future<void> loadAssignedBikesFromStore({
-    required String userName,
-  }) async {
-    assignedBikeIds.clear();
-    assignedBikeNameById.clear();
-
-    try {
-      final storeSnapshot = await _firestore
-          .collection('store')
-          .where('category', isEqualTo: "Bikes")
-          .where('assignedTo', isEqualTo: userName)
-          .get();
-
-      final List<String> ids = [];
-      final Map<String, String> nameMap = {};
-
-      for (final doc in storeSnapshot.docs) {
-        final id = doc.id;
-        final data = doc.data();
-
-        final displayName =
-            (data['name'] ?? data['itemName'] ?? id).toString();
-
-        ids.add(id);
-        nameMap[id] = displayName;
-      }
-
-      setState(() {
-        assignedBikeIds = ids;
-        assignedBikeNameById = Map<String, String>.from(nameMap);
-        bikeNamesForDropdown = ids.map((id) => nameMap[id]!).toList(); // list of names
-        if (selectedBike == null && ids.isNotEmpty) {
-          selectedBike = nameMap[ids.first]; // set name, not ID
-        }
-      });
-    } catch (e) {
-      setState(() {
-        assignedBikeIds = [];
-        assignedBikeNameById = {};
-        bikeNamesForDropdown = [];
-        selectedBike = null;
-      });
-    }
-  }
-    
   void _updateTime() {
     final now = DateTime.now();
     setState(() {
@@ -257,9 +198,6 @@ class _ClockInState extends State<ClockIn> {
     setState(() {
       bikes = Map<String, dynamic>.from(data); // deep copy
       _bikesDisplayFuture = Future.value(bikes);
-
-      // Only unassigned bikes for the dropdown
-      bikeNamesForDropdown = bikes.keys.toList();
     });
   }
 
@@ -330,27 +268,13 @@ class _ClockInState extends State<ClockIn> {
       final assignedRider = data['assignedRider']?.toString() ?? "None";
       final assignedBike = data['assignedBike']?.toString() ?? "None";
       final batteryName = data['batteryName'] ?? "Unknown Battery";
-      final storeAssignedRider = data['storeAssignedRider'] ?? "None";
 
       final isBooked = data['isBooked'] ?? false;
       final bookedBy = data['bookedBy'] ?? "another rider.";
-      final isConfirmed = data['confirmedStatus'] ?? true; // default to true if field is missing, to avoid false negatives
-
-      if (freeAssignment == false && isConfirmed == false) {
-        ToastService.error("$batteryName's status hasn't been confirmed. Please try again later.");
-        setState(() => scanning = false);
-        return;
-      }
 
       if (isBooked && bookedBy != userName) {
         ToastService.warning("$batteryName is currently booked by $bookedBy");
         return;
-      }
-
-      if (freeAssignment == false && storeAssignedRider != userName) {
-          ToastService.warning("$batteryName is reserved. Contact manager.");
-          setState(() => scanning = false);
-          return;
       }
 
       if (assignedRider == "None") {
@@ -374,6 +298,14 @@ class _ClockInState extends State<ClockIn> {
   Future<void> clockIn() async {
     if (selectedBike == null) {
       ToastService.error("Select a bike");
+      return;
+    }
+
+    // Local copies so they can't change under us mid-flight.
+    final bikeName = selectedBike!;
+    final shift = assignedShift;
+    if (shift == null) {
+      ToastService.error("Your shift isn't set — ask your admin to re-assign your bike");
       return;
     }
 
@@ -407,6 +339,9 @@ class _ClockInState extends State<ClockIn> {
 
       await userDocRef.update({
         'currentBike': selectedBike,
+        // Remembered so clock-out closes out the SAME shift even if an admin
+        // re-assigns this rider while they're on the road.
+        'currentShift': shift,
         'clockInTime': now,
         'isClockedIn': true,
         'notifications.$notificationId': {
@@ -431,13 +366,16 @@ class _ClockInState extends State<ClockIn> {
           'assignedRider': userName,
           'assignedBike': selectedBike,
           'isBooked': false,
-          'storeAssignedRider': userName,
           'batteryLocation': 'In Motion',
           'offTime': now,
         });
       }
 
-      // Update bike assignment
+      // Update the bike's slot for THIS rider's shift only. A bike has a day
+      // slot and a night slot; the other shift's rider must never be touched.
+      // Field-level update (not a rewrite of the whole `bikes` map) so a day
+      // rider and a night rider clocking in around shift change can't
+      // overwrite each other.
       final generalRef = FirebaseFirestore.instance
           .collection('general')
           .doc('general_variables');
@@ -448,45 +386,17 @@ class _ClockInState extends State<ClockIn> {
         generalSnapshot.data()?['bikes'] ?? {},
       );
 
-      if (bikes.containsKey(selectedBike)) {
-        bikes[selectedBike!] = {
-          ...Map<String, dynamic>.from(bikes[selectedBike!]),
-          'isAssigned': true,
-          'assignedRider': userName,
-        };
-      }
-
-      await generalRef.update({
-        'bikes': bikes,
-      });
-
-      // Store transactions
-      final storeQuery = await FirebaseFirestore.instance
-          .collection('store')
-          .where('assignedTo', isEqualTo: userName)
-          .get();
-
-      final batch = FirebaseFirestore.instance.batch();
-
-      for (final doc in storeQuery.docs) {
-        batch.update(doc.reference, {
-          'transactions': FieldValue.arrayUnion([
-            {
-              'message':
-                  'Clocked in with $userName on ${AppDateUtils.formatStandard(now)}.',
-              'time': now,
-            }
-          ]),
+      if (bikes.containsKey(bikeName)) {
+        await generalRef.update({
+          'bikes.$bikeName.$shift.isAssigned': true,
+          'bikes.$bikeName.$shift.assignedRider': userName,
         });
       }
-
-      await batch.commit();
 
       ToastService.success("Clock-in successful");
 
       setState(() {
         isClockedIn = true;
-        selectedBike = null;
       });
 
       resetScans();
@@ -504,148 +414,19 @@ class _ClockInState extends State<ClockIn> {
     }
   }
 
-  /// Reset scanned batteries AND selected bike
+  /// Reset scanned batteries only — the assigned bike stays put
   void resetScans() {
     setState(() {
       scannedBatteries.clear();
       scannedBatteryCodes.clear();
-      selectedBike = null;
       scanning = false;
     });
     ToastService.info("Scans reset");
   }
 
-  Future<List<QueryDocumentSnapshot>> _fetchUnresolvedDamages(String bikeId) async {
-    try {
-      setState(() {
-        isClockingIn = true;
-      });
-      final snapshot = await FirebaseFirestore.instance
-          .collection('damagesReports')
-          .doc(bikeId)
-          .collection('items')
-          .where('resolved', isEqualTo: false)
-          .where('confirmed', isEqualTo: false)
-          .get();
-
-      return snapshot.docs;
-    } catch (e) {
-      ToastService.error("Failed to check damages: $e");
-      return [];
-    }
-    finally {
-      setState(() {
-        isClockingIn = false;
-      });
-    }
-  }
-
-  void showClockInDialog() async {
-    if (selectedBike == null) return;
-
-    final unresolved = await _fetchUnresolvedDamages(selectedBike!);
-
-    if (unresolved.isNotEmpty) {
-      _showDamageResolutionDialog(unresolved);
-      return;
-    }
-
-    showClockInConfirmationDialog(); // existing dialog
-  }
-
-  void _showDamageResolutionDialog(List<QueryDocumentSnapshot> items) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text("Pending Damage Reviews"),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: items.map((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            data['message'] ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 10),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              TextButton(
-                                onPressed: () async {
-                                  await doc.reference.update({
-                                    'declined': true,
-                                    'confirmed': false,
-                                    'resolved': false,
-                                    'declinedBy': userName,
-                                    'declinedAt': DateTime.now(),
-                                  });
-
-                                  setState(() {
-                                    items.remove(doc);
-                                  });
-                                  ToastService.info("Resolution declined");
-
-                                  if (items.isEmpty) {
-                                    Navigator.pop(context);
-                                    showClockInConfirmationDialog();
-                                  }
-                                },
-                                child: const Text("Decline"),
-                              ),
-                              const SizedBox(width: 8),
-                              FilledButton(
-                                onPressed: () async {
-                                  await doc.reference.update({
-                                    'confirmed': true,
-                                    'declined': false,
-                                    'resolved': true,
-                                    'confirmedBy': userName,
-                                    'confirmedAt': DateTime.now(),
-                                  });
-
-                                  setState(() {
-                                    items.remove(doc);
-                                  });
-                                  ToastService.success("Resolution confirmed");
-                                  if (items.isEmpty) {
-                                    Navigator.pop(context);
-                                    showClockInConfirmationDialog();
-                                  }
-                                },
-                                child: const Text("Confirm"),
-                              ),
-                            ],
-                          )
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+  void showClockInDialog() {
+    if (selectedBike == null || assignedShift == null) return;
+    showClockInConfirmationDialog();
   }
 
   void showClockInConfirmationDialog() {
@@ -682,6 +463,16 @@ class _ClockInState extends State<ClockIn> {
                 icon: Icons.bike_scooter,
                 label: 'Bike',
                 value: selectedBike ?? 'None selected',
+              ),
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                localTheme,
+                icon: assignedShift == 'night'
+                    ? Icons.nightlight_round
+                    : Icons.wb_sunny_rounded,
+                label: 'Shift',
+                value: _shiftText(),
+                isWarning: assignedShift == null,
               ),
               const SizedBox(height: 8),
               _buildInfoRow(
@@ -922,59 +713,59 @@ class _ClockInState extends State<ClockIn> {
 
                 const SizedBox(height: 28),
 
-                /// Bike dropdown
-                SizedBox(
+                /// Assigned bike (set via the Assignments page — not editable here)
+                Container(
                   width: double.infinity,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: selectedBike,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: "Select Bike",
-                      hintText: "Choose available bike",
-                      prefixIcon: Icon(Icons.two_wheeler_outlined, color: Colors.blue[600]),
-                      filled: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-                      ),
-                      labelStyle: TextStyle(color: Colors.grey[700]),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                  decoration: BoxDecoration(
+                    color: selectedBike != null
+                        ? Colors.blue.withOpacity(0.08)
+                        : Colors.red.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: selectedBike != null
+                          ? Colors.blue.withOpacity(0.25)
+                          : Colors.red.withOpacity(0.25),
                     ),
-
-                    items: bikeNamesForDropdown.map((bikeName) {
-                      final isAssigned = (bikes[bikeName]?['isAssigned'] ?? false) as bool;
-
-                      final color = Theme.of(context).colorScheme.onSurface.withOpacity(
-                        isAssigned ? 0.4 : 1.0, // lighter for disabled, full for enabled
-                      );
-
-                      final child = Text(
-                        bikeName,
-                        style: TextStyle(color: color),
-                      );
-
-                      return DropdownMenuItem<String>(
-                        value: bikeName,
-                        enabled: !isAssigned, // only unassigned bikes selectable
-                        child: child,
-                      );
-                    }).toList(),
-                                    
-                    onChanged: (value) {
-                      setState(() => selectedBike = value);
-                    },
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.two_wheeler_outlined,
+                        color: selectedBike != null ? Colors.blue[600] : Colors.red,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Your assigned bike",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              selectedBike ?? "No bike assigned yet - contact your admin",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: selectedBike != null
+                                    ? Theme.of(context).colorScheme.onSurface
+                                    : Colors.red,
+                              ),
+                            ),
+                            if (selectedBike != null) ...[
+                              const SizedBox(height: 8),
+                              _buildShiftChip(),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -1117,124 +908,13 @@ class _ClockInState extends State<ClockIn> {
                     }).toList(),
                   ),
 
-                const SizedBox(height: 8),
-
-                // Fixed height so content never “jumps”
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 60), // minimum 60px always
-                  child: FutureBuilder<_AssignmentResult>(
-                    future: _assignmentFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting ||
-                          !snapshot.hasData) {
-                        // Instead of shrink(), keep empty space:
-                        return const SizedBox(height: 60);
-                      }
-
-                      final result = snapshot.data!;
-                      final freeAssignment = result.freeAssignment;
-                      final assignedItems = result.assignedItems;
-
-                      if (!_assignmentSideEffectsRan) {
-                        _assignmentSideEffectsRan = true;
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (!mounted) return;
-                          if (freeAssignment) {
-                            loadBikes();
-                          } else {
-                            loadAssignedBikesFromStore(userName: userName);
-                          }
-                        });
-                      }
-
-                      if (freeAssignment) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.check_circle, color: Colors.green),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  "You can use any bike and battery of your choice.",
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(color: Colors.green.shade800),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      if (assignedItems.isEmpty) {
-                        return const SizedBox(height: 60); // keep height consistent
-                      }
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    "By clocking in, you assume responsibility of the following until confirmed back to the warehouse.",
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(color: Colors.orange.shade800),
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          ...assignedItems.map((item) {
-                            return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              child: ListTile(
-                                leading: const Icon(Icons.electric_bike),
-                                title: Text(item.name),
-                                subtitle: Text("ID: ${item.id}"),
-                              ),
-                            );
-                          }).toList(),
-                        ],
-                      );
-                    
-                    
-                    
-                    
-                    },
-                  ),
-                ),
-
                 const SizedBox(height: 24),
 
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: (selectedBike != null &&
+                            assignedShift != null &&
                             scannedBatteries.isNotEmpty &&
                             !isClockingIn &&
                             (!isSunday || isWorkingOnSunday == true) &&

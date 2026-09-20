@@ -1,7 +1,7 @@
 name: billkmotolinkltd
 description: "BILLK MOTOLINK LTD."
 publish_to: 'none'
-version: 2.5.4+1
+version: 2.6.0+1
 
 environment:
   sdk: ^3.9.2
@@ -40,6 +40,7 @@ dependencies:
   table_calendar: ^3.1.0
   pdf: ^3.11.0
   printing: ^5.13.0
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -58,3 +59,7 @@ flutter:
         - asset: assets/fonts/TT_Chocolates_Regular.otf
         - asset: assets/fonts/TT_Chocolates_Medium.otf
           weight: 700
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo1.png"
