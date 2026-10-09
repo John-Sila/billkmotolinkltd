@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:billkmotolinkltd/pages/absenteesm.dart';
-import 'package:billkmotolinkltd/services/toast_service.dart';
+import 'package:ultracem/pages/absenteesm.dart';
+import 'package:ultracem/services/toast_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -41,20 +41,13 @@ import 'pages/settings.dart';
 import 'pages/swap_batteries.dart';
 import 'services/notifier.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-  );
-
-  await NotificationService().initialize();
-
-  runApp(const BillkMotolinkApp());
+  // Paint the logo splash straight away. Firebase and notifications are
+  // initialised behind it (see AppBootstrap) instead of before the first frame,
+  // which is what used to leave a blank screen on launch.
+  runApp(const UltracemApp());
 }
 
 Future<bool> requestAllPermissions() async {
@@ -77,24 +70,103 @@ Future<void> setupNotificationSystem() async {
 }
 
 
-class BillkMotolinkApp extends StatelessWidget {
-  const BillkMotolinkApp({super.key});
+class UltracemApp extends StatelessWidget {
+  const UltracemApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BILLK MOTOLINK LTD',
+      title: 'ultracem',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
       theme: _lightTheme(),
       darkTheme: _darkTheme(),
-      home: const AuthGate(),
+      home: const AppBootstrap(),
     );
   }
 
   ThemeData _lightTheme() => AppTheme.light();
 
   ThemeData _darkTheme() => AppTheme.dark();
+}
+
+/// Shows the splash while the app's services start, then fades into [AuthGate].
+class AppBootstrap extends StatefulWidget {
+  const AppBootstrap({super.key});
+
+  @override
+  State<AppBootstrap> createState() => _AppBootstrapState();
+}
+
+class _AppBootstrapState extends State<AppBootstrap> {
+  /// The logo never flashes by: show it for at least this long even when
+  /// start-up is faster. Lower it (or set to Duration.zero) to launch faster.
+  static const Duration _minSplash = Duration(milliseconds: 1200);
+
+  bool _ready = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  Future<void> _start() async {
+    if (_error != null) setState(() => _error = null);
+
+    final minSplash = Future<void>.delayed(_minSplash);
+    try {
+      await _initialiseServices();
+      await minSplash;
+      if (!mounted) return;
+      setState(() => _ready = true);
+    } catch (e, st) {
+      debugPrint('App start-up failed: $e\n$st');
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    }
+  }
+
+  Future<void> _initialiseServices() async {
+    // Already initialised on a retry or hot restart.
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+
+    try {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+      );
+    } catch (e) {
+      // Firestore refuses settings changes once it has been used (hot restart).
+      debugPrint('Firestore settings not applied: $e');
+    }
+
+    // Notifications are optional: never block the app from opening on them.
+    try {
+      await NotificationService().initialize();
+    } catch (e) {
+      debugPrint('Notification setup failed: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 450),
+      switchInCurve: Curves.easeOut,
+      child: _ready
+          ? const AuthGate(key: ValueKey('app'))
+          : SplashScreen(
+              key: const ValueKey('splash'),
+              error: _error,
+              onRetry: _start,
+            ),
+    );
+  }
 }
 
 class AuthGate extends StatelessWidget {
@@ -106,7 +178,7 @@ class AuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SplashScreen();
+          return const SplashScreen(settled: true);
         }
 
         if (snapshot.hasData) {

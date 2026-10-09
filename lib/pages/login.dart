@@ -12,6 +12,17 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  // App accent: teal 700 (the theme seed) and the aqua used at the end of the
+  // app's own accent gradients.
+  static const Color _teal = Color(0xFF00796B);
+  static const Color _tealDeep = Color(0xFF00695C);
+  static const Color _aqua = Color(0xFF00C6A2);
+
+  // Accent for text, icons and borders: teal on light, the brighter aqua on dark
+  // so it stays readable. Filled buttons use _teal in both (white text on it).
+  Color get _accent =>
+      Theme.of(context).brightness == Brightness.dark ? _aqua : _teal;
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -134,7 +145,7 @@ class _LoginPageState extends State<LoginPage> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: Row(
                 children: [
-                  Icon(Icons.lock_reset, color: Colors.orange[600], size: 28),
+                  Icon(Icons.lock_reset, color: _accent, size: 28),
                   const SizedBox(width: 12),
                   const Text('Reset Password', style: TextStyle(fontWeight: FontWeight.w700)),
                 ],
@@ -157,7 +168,7 @@ class _LoginPageState extends State<LoginPage> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
+                        borderSide: BorderSide(color: _accent, width: 2),
                       ),
                     ),
                     validator: (value) {
@@ -212,7 +223,7 @@ class _LoginPageState extends State<LoginPage> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange[600],
+                    backgroundColor: _teal,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -255,7 +266,7 @@ class _LoginPageState extends State<LoginPage> {
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [Colors.blue[600]!, Colors.blue[400]!],
+                              colors: [_teal, _aqua],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -270,7 +281,7 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 32),
 
                         const Text(
-                          'Welcome to BILLK MOTOLINK LTD',
+                          'Welcome to Ultracem Motolink',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -367,20 +378,20 @@ class _LoginPageState extends State<LoginPage> {
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: _rememberMe
-                                          ? [Colors.blue.shade600, Colors.blue.shade700]
+                                          ? [_teal, _tealDeep]
                                           : [Colors.transparent, Colors.transparent],
                                     ),
                                     borderRadius: BorderRadius.circular(6),
                                     border: Border.all(
                                       color: _rememberMe 
-                                        ? Colors.blue.shade600 
+                                        ? _teal 
                                         : Colors.grey.shade400,
                                       width: _rememberMe ? 2 : 1.5,
                                     ),
                                     boxShadow: [
                                       if (_rememberMe)
                                         BoxShadow(
-                                          color: Colors.blue.withValues(alpha: 0.3),
+                                          color: _teal.withValues(alpha: 0.3),
                                           blurRadius: 8,
                                           offset: const Offset(0, 2),
                                         ),
@@ -452,13 +463,13 @@ class _LoginPageState extends State<LoginPage> {
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _signIn,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue[600],
+                              backgroundColor: _teal,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               elevation: 0,
-                              shadowColor: Colors.blue[200],
+                              shadowColor: _teal.withValues(alpha: 0.3),
                             ),
                             child: _isLoading
                                 ? const SizedBox(
@@ -487,9 +498,9 @@ class _LoginPageState extends State<LoginPage> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Colors.blue[600],
+                              color: _accent,
                               decoration: TextDecoration.underline,
-                              decorationColor: Colors.blue[600],
+                              decorationColor: _accent,
                               height: 1.2,
                             ),
                           ),
@@ -532,7 +543,7 @@ class _LoginPageState extends State<LoginPage> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(icon, color: Colors.blue[600]),
+        prefixIcon: Icon(icon, color: _accent),
         suffixIcon: suffixIcon,
         filled: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -546,7 +557,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
+          borderSide: BorderSide(color: _accent, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

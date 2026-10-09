@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Centralized design system for Billk Motolink.
+/// Centralized design system for ultracem.
 ///
 /// UI/UX ONLY: this file contains no business logic and touches no
 /// Firestore paths. It only changes how existing widgets *look* by

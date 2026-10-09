@@ -1,10 +1,10 @@
-import 'package:billkmotolinkltd/pages/settings/calendar_of_events.dart';
+import 'package:ultracem/pages/settings/calendar_of_events.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:billkmotolinkltd/pages/settings/help_and_faq.dart';
-import 'package:billkmotolinkltd/pages/settings/my_profile.dart';
-import 'package:billkmotolinkltd/pages/settings/terms_and_conditions.dart';
-import 'package:billkmotolinkltd/pages/settings/view_and_clear_app_data.dart';
+import 'package:ultracem/pages/settings/help_and_faq.dart';
+import 'package:ultracem/pages/settings/my_profile.dart';
+import 'package:ultracem/pages/settings/terms_and_conditions.dart';
+import 'package:ultracem/pages/settings/view_and_clear_app_data.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class UserSettings extends StatefulWidget {

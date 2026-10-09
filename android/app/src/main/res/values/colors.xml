@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launch-screen background (light). Matches SplashScreen in lib/pages/splash_screen.dart -->
+    <color name="ultracem_splash_bg">#FFFFFF</color>
+</resources>

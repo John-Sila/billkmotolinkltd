@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launch-screen background (dark). Same as the dark scaffold colour in AppTheme -->
+    <color name="ultracem_splash_bg">#121212</color>
+</resources>

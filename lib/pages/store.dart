@@ -1,9 +1,9 @@
 // ========================= create_and_manage_store.dart =========================
 
-import 'package:billkmotolinkltd/store/add_section.dart';
-import 'package:billkmotolinkltd/store/assign_section.dart';
-import 'package:billkmotolinkltd/store/disburse_section.dart';
-import 'package:billkmotolinkltd/store/store_section.dart';
+import 'package:ultracem/store/add_section.dart';
+import 'package:ultracem/store/assign_section.dart';
+import 'package:ultracem/store/disburse_section.dart';
+import 'package:ultracem/store/store_section.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';

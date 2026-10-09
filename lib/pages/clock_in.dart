@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:billkmotolinkltd/pages/widgets/qr_scanner.dart';
-import 'package:billkmotolinkltd/services/toast_service.dart';
-import 'package:billkmotolinkltd/utils/utility_functions.dart';
+import 'package:ultracem/pages/widgets/qr_scanner.dart';
+import 'package:ultracem/services/toast_service.dart';
+import 'package:ultracem/utils/utility_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

@@ -1,7 +1,7 @@
-name: billkmotolinkltd
-description: "BILLK MOTOLINK LTD."
+name: ultracem
+description: "ultracem"
 publish_to: 'none'
-version: 2.6.0+1
+version: 2.7.2+2
 
 environment:
   sdk: ^3.9.2
@@ -51,6 +51,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.png
+    - assets/branding/ultracem_mark.png
+    - assets/branding/ultracem_wordmark_dark.png
+    - assets/branding/ultracem_wordmark_light.png
     - assets/kra.png
     - assets/primary_signature.png
   fonts:
@@ -62,4 +65,8 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/logo1.png"
+  remove_alpha_ios: true
+  image_path: "assets/branding/app_icon.png"
+  adaptive_icon_background: "assets/branding/app_icon_background.png"
+  adaptive_icon_foreground: "assets/branding/app_icon_foreground.png"
+  adaptive_icon_monochrome: "assets/branding/app_icon_monochrome.png"

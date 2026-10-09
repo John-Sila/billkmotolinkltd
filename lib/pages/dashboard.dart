@@ -3,8 +3,8 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:battery_plus/battery_plus.dart';
-import 'package:billkmotolinkltd/services/notifier.dart';
-import 'package:billkmotolinkltd/services/toast_service.dart';
+import 'package:ultracem/services/notifier.dart';
+import 'package:ultracem/services/toast_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';

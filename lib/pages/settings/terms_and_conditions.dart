@@ -71,7 +71,7 @@ class TermsAndConditions extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'BILLK MOTOLINK LTD',
+                                    'ULTRACEM MOTOLINK',
                                     style: theme.textTheme.headlineSmall?.copyWith(
                                       fontWeight: FontWeight.w700,
                                       color: theme.colorScheme.primary,
@@ -123,7 +123,7 @@ class TermsAndConditions extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'By using the BILLK MOTOLINK LTD platform, you acknowledge that you have read, understood, and agreed to these Terms and Conditions.',
+                          'By using the ULTRACEM MOTOLINK platform, you acknowledge that you have read, understood, and agreed to these Terms and Conditions.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w600,
@@ -146,7 +146,7 @@ class TermsAndConditions extends StatelessWidget {
     final sections = [
       {
         'title': '1. Nature of Engagement',
-        'body': 'BILLK MOTOLINK LTD operates a delivery and logistics platform. Riders are engaged as independent operators unless otherwise stated in writing. Nothing herein constitutes an employer–employee relationship.',
+        'body': 'ULTRACEM MOTOLINK operates a delivery and logistics platform. Riders are engaged as independent operators unless otherwise stated in writing. Nothing herein constitutes an employer–employee relationship.',
       },
       {
         'title': '2. Eligibility',
