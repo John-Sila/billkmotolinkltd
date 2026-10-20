@@ -72,7 +72,7 @@ class HelpAndFAQ extends StatelessWidget {
       const String phoneNumber = '254717405109'; // Kenya: 254 is country code
       
       // Simple test message
-      const String message = 'Hello Billk Motolink Support!';
+      const String message = 'Hello DAITOM MOTORLINK Support!';
       
       // Construct URL
       final String encodedMessage = Uri.encodeComponent(message);

@@ -1,7 +1,7 @@
-name: billkmotolinkltd
-description: "BILLK MOTOLINK LTD."
+name: daitom
+description: "DAITOM MOTORLINK LTD - bike fleet management"
 publish_to: 'none'
-version: 2.6.0+1
+version: 3.2.2+3
 
 environment:
   sdk: ^3.9.2
@@ -41,6 +41,8 @@ dependencies:
   pdf: ^3.11.0
   printing: ^5.13.0
   flutter_launcher_icons: ^0.14.4
+  geolocator: ^14.0.2
+  geocoding: ^5.0.0
 
 dev_dependencies:
   flutter_test:
@@ -51,6 +53,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.png
+    - assets/branding/daitom_mark.png
+    - assets/branding/daitom_wordmark_dark.png
+    - assets/branding/daitom_wordmark_light.png
     - assets/kra.png
     - assets/primary_signature.png
   fonts:
@@ -62,4 +67,8 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/logo1.png"
+  remove_alpha_ios: true
+  image_path: "assets/branding/app_icon.png"
+  adaptive_icon_background: "assets/branding/app_icon_background.png"
+  adaptive_icon_foreground: "assets/branding/app_icon_foreground.png"
+  adaptive_icon_monochrome: "assets/branding/app_icon_monochrome.png"

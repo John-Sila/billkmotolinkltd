@@ -98,7 +98,7 @@ class NonVariableDocuments extends StatelessWidget {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text("BILLK MOTOLINK LTD", style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                    pw.Text("DAITOM MOTORLINK LTD", style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
                     pw.Text(department, style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700)),
                   ],
                 ),
@@ -124,7 +124,7 @@ class NonVariableDocuments extends StatelessWidget {
             pw.SizedBox(
               width: 180,
               child: pw.Text(
-                disclaimer ?? "This document is an official record of BILLK MOTOLINK LTD and is subject to the Laws of Kenya and internal corporate policies.",
+                disclaimer ?? "This document is an official record of DAITOM MOTORLINK LTD and is subject to the Laws of Kenya and internal corporate policies.",
                 style: pw.TextStyle(
                   fontSize: 6,
                   color: PdfColors.grey600,
@@ -372,7 +372,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= INTRO =================
         _buildSectionTitle("1. Parties to the Agreement"),
         _buildBodyText(
-            "This Employment Contract is entered into between BILLK MOTOLINK LTD (hereinafter referred to as 'the Employer') "
+            "This Employment Contract is entered into between DAITOM MOTORLINK LTD (hereinafter referred to as 'the Employer') "
             "and the undersigned individual (hereinafter referred to as 'the Employee')."),
 
         // ================= POSITION =================
@@ -585,7 +585,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= PARTIES =================
         _buildSectionTitle("1. Parties"),
         _buildBodyText(
-            "This Agreement is entered into between BILLK MOTOLINK LTD (the 'Company') and the undersigned Employee."),
+            "This Agreement is entered into between DAITOM MOTORLINK LTD (the 'Company') and the undersigned Employee."),
 
         // ================= PURPOSE =================
         _buildSectionTitle("2. Purpose"),
@@ -628,7 +628,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= OWNERSHIP =================
         _buildSectionTitle("7. Ownership of Information"),
         _buildBodyText(
-            "All confidential information remains the exclusive property of BILLK MOTOLINK LTD. No rights or licenses are granted to the Employee except as explicitly stated."),
+            "All confidential information remains the exclusive property of DAITOM MOTORLINK LTD. No rights or licenses are granted to the Employee except as explicitly stated."),
 
         // ================= BREACH =================
         _buildSectionTitle("8. Breach of Agreement"),
@@ -678,7 +678,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= PARTIES =================
         _buildSectionTitle("1. Parties"),
         _buildBodyText(
-            "This Intellectual Property Assignment Agreement is entered into between BILLK MOTOLINK LTD (the 'Company') and the undersigned Employee."),
+            "This Intellectual Property Assignment Agreement is entered into between DAITOM MOTORLINK LTD (the 'Company') and the undersigned Employee."),
 
         // ================= PURPOSE =================
         _buildSectionTitle("2. Purpose"),
@@ -699,7 +699,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= OWNERSHIP =================
         _buildSectionTitle("4. Ownership Rights"),
         _buildBodyText(
-            "All intellectual property created by the Employee during employment, whether individually or jointly, shall be the exclusive property of BILLK MOTOLINK LTD."),
+            "All intellectual property created by the Employee during employment, whether individually or jointly, shall be the exclusive property of DAITOM MOTORLINK LTD."),
 
         _buildBodyText(
             "The Employee hereby irrevocably assigns all rights, title, and interest in such intellectual property to the Company."),
@@ -777,7 +777,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= PURPOSE =================
         _buildSectionTitle("1. Purpose"),
         _buildBodyText(
-            "This policy defines how personal data, company data, and third-party data is collected, processed, stored, and protected within BILLK MOTOLINK LTD systems."),
+            "This policy defines how personal data, company data, and third-party data is collected, processed, stored, and protected within DAITOM MOTORLINK LTD systems."),
 
         // ================= SCOPE =================
         _buildSectionTitle("2. Scope"),
@@ -993,7 +993,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= PURPOSE =================
         _buildSectionTitle("1. Purpose"),
         _buildBodyText(
-            "This document serves as formal acknowledgment by the Employee that they understand how their salary is calculated, processed, and disbursed by BILLK MOTOLINK LTD."),
+            "This document serves as formal acknowledgment by the Employee that they understand how their salary is calculated, processed, and disbursed by DAITOM MOTORLINK LTD."),
 
         // ================= EMPLOYEE DETAILS =================
         _buildSectionTitle("2. Employee Information"),
@@ -1070,7 +1070,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= PURPOSE =================
         _buildSectionTitle("1. Purpose"),
         _buildBodyText(
-            "This Code of Conduct establishes behavioral, ethical, and professional standards required of all employees of BILLK MOTOLINK LTD."),
+            "This Code of Conduct establishes behavioral, ethical, and professional standards required of all employees of DAITOM MOTORLINK LTD."),
 
         // ================= SCOPE =================
         _buildSectionTitle("2. Scope"),
@@ -1181,7 +1181,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= INTRO =================
         _buildSectionTitle("1. Purpose"),
         _buildBodyText(
-            "This policy establishes the standards for acceptable use, security, and management of information technology systems within BILLK MOTOLINK LTD. "
+            "This policy establishes the standards for acceptable use, security, and management of information technology systems within DAITOM MOTORLINK LTD. "
             "It aims to protect company assets, ensure operational continuity, and safeguard sensitive data."),
 
         _buildSectionTitle("2. Scope"),
@@ -1206,7 +1206,7 @@ class NonVariableDocuments extends StatelessWidget {
         _buildBodyText(
             "The Data Protection Act, 2019 (No. 24 of 2019)."),
         _buildBodyText(
-            "All data created, stored, or processed using company systems remains the sole property of BILLK MOTOLINK LTD and must be handled in accordance with internal policies and applicable data protection laws."),
+            "All data created, stored, or processed using company systems remains the sole property of DAITOM MOTORLINK LTD and must be handled in accordance with internal policies and applicable data protection laws."),
 
         _buildBulletPoint("Do not transfer company data to personal devices without authorization."),
         _buildBulletPoint("Sensitive data must be encrypted during storage and transmission."),
@@ -1291,7 +1291,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= PURPOSE =================
         _buildSectionTitle("1. Purpose"),
         _buildBodyText(
-            "This policy establishes a standardized framework for recording, monitoring, and evaluating employee attendance within BILLK MOTOLINK LTD systems."),
+            "This policy establishes a standardized framework for recording, monitoring, and evaluating employee attendance within DAITOM MOTORLINK LTD systems."),
 
         // ================= SCOPE =================
         _buildSectionTitle("2. Scope"),
@@ -1398,7 +1398,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= COMPANY ASSETS =================
         _buildSectionTitle("3. Company Property"),
         _buildBodyText(
-            "All company property entrusted to the Employee remains the sole property of BILLK MOTOLINK LTD and must be used responsibly and solely for authorized business purposes."),
+            "All company property entrusted to the Employee remains the sole property of DAITOM MOTORLINK LTD and must be used responsibly and solely for authorized business purposes."),
 
         _buildBulletPoint("Motorbikes, vehicles, or delivery equipment"),
         _buildBulletPoint("Mobile devices and communication tools"),
@@ -1494,7 +1494,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= PURPOSE =================
         _buildSectionTitle("1. Purpose"),
         _buildBodyText(
-            "This Agreement prevents the Employee from directly or indirectly soliciting clients, employees, contractors, or business partners of BILLK MOTOLINK LTD during and after employment."),
+            "This Agreement prevents the Employee from directly or indirectly soliciting clients, employees, contractors, or business partners of DAITOM MOTORLINK LTD during and after employment."),
 
         // ================= SCOPE =================
         _buildSectionTitle("2. Scope"),
@@ -1574,7 +1574,7 @@ class NonVariableDocuments extends StatelessWidget {
       department: 'Warehouse',
       stakeholders: ['Employee', 'Store Keeper'],
       legalDisclaimer:
-          "This document confirms assignment of company property to the Employee. All equipment remains the property of BILLK MOTOLINK LTD and must be returned upon request or termination of employment.",
+          "This document confirms assignment of company property to the Employee. All equipment remains the property of DAITOM MOTORLINK LTD and must be returned upon request or termination of employment.",
 
       content: [
 
@@ -1775,7 +1775,7 @@ class NonVariableDocuments extends StatelessWidget {
         // ================= PURPOSE =================
         _buildSectionTitle("1. Purpose"),
         _buildBodyText(
-            "This form ensures that all obligations between the Employee and BILLK MOTOLINK LTD are properly concluded upon termination of employment."),
+            "This form ensures that all obligations between the Employee and DAITOM MOTORLINK LTD are properly concluded upon termination of employment."),
 
         // ================= EMPLOYEE DETAILS =================
         _buildSectionTitle("2. Employee Information"),

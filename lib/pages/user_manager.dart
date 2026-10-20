@@ -1,4 +1,4 @@
-import 'package:billkmotolinkltd/services/toast_service.dart';
+import 'package:daitom/services/toast_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -43,6 +43,28 @@ class _UserManagerState extends State<UserManager> {
     borderSide: const BorderSide(width: 1, color: Colors.grey),
   );
 
+  /// Turns a Firebase error into something an admin can act on.
+  String _friendlyError(Object e) {
+    if (e is FirebaseAuthException) {
+      switch (e.code) {
+        case 'email-already-in-use':
+          return 'That email is already registered.';
+        case 'invalid-email':
+          return 'That email address is not valid.';
+        case 'weak-password':
+          return 'The new user\'s password is too weak.';
+        case 'wrong-password':
+        case 'invalid-credential':
+          return 'Your admin password was incorrect.';
+        case 'network-request-failed':
+          return 'No internet connection.';
+        default:
+          return e.message ?? e.code;
+      }
+    }
+    return e.toString();
+  }
+
   Future<void> createUserFlow({
     required BuildContext context,
     required String fullName,
@@ -76,7 +98,7 @@ class _UserManagerState extends State<UserManager> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text("Confirm"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -91,10 +113,10 @@ class _UserManagerState extends State<UserManager> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text("Cancel")),
           TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text("Continue")),
         ],
       ),
@@ -105,10 +127,31 @@ class _UserManagerState extends State<UserManager> {
     final adminPassword = adminPasswordController.text.trim();
     if (adminPassword.isEmpty) return;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const FullScreenLoader()),
+    // Grab the navigator and the loader route NOW, before any await.
+    //
+    // Why: creating the user signs the NEW user in, and the flow below then
+    // signs out and back in as the admin. Each of those fires the app's auth
+    // listener, which can rebuild the whole app and dispose this screen. After
+    // that, `context` is dead, so `Navigator.of(context...)` throws and the
+    // loader is never removed (the toast still shows because it needs no
+    // context). The NavigatorState and the route object stay valid, so we
+    // remove that exact route instead.
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final loaderRoute = MaterialPageRoute<void>(
+      builder: (_) => const FullScreenLoader(),
     );
+    navigator.push(loaderRoute);
+
+    var loaderClosed = false;
+    void closeLoader() {
+      if (loaderClosed) return;
+      loaderClosed = true;
+      try {
+        if (navigator.mounted) navigator.removeRoute(loaderRoute);
+      } catch (e) {
+        debugPrint("Could not close loader: $e");
+      }
+    }
 
     try {
       await adminUser.reauthenticateWithCredential(
@@ -151,16 +194,35 @@ class _UserManagerState extends State<UserManager> {
         password: adminPassword,
       );
 
-      ToastService.success("${fullName.split(" ")[0]} can log in to the platform now!");
+      closeLoader();
 
-      Navigator.of(context, rootNavigator: true).pop();
+      ToastService.success("${fullName.split(" ")[0]} can log in to the platform now!");
 
       if (onComplete != null) {
         onComplete();
       }
     } catch (e) {
-      Navigator.of(context, rootNavigator: true).pop();
       debugPrint("Error: $e");
+
+      // If we failed after the new user was created, we are still signed in
+      // as that new user. Put the admin back.
+      try {
+        final current = auth.currentUser?.email?.toLowerCase();
+        if (current != adminEmail.toLowerCase()) {
+          await auth.signInWithEmailAndPassword(
+            email: adminEmail,
+            password: adminPassword,
+          );
+        }
+      } catch (restoreError) {
+        debugPrint("Could not restore admin session: $restoreError");
+      }
+
+      closeLoader();
+      ToastService.error("Could not create user: ${_friendlyError(e)}");
+    } finally {
+      // Whatever happened above, the loader must never be left on screen.
+      closeLoader();
     }
   }
 

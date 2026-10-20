@@ -1,4 +1,4 @@
-import 'package:billkmotolinkltd/services/toast_service.dart';
+import 'package:daitom/services/toast_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -320,7 +320,7 @@ class _AssetManagerState extends State<AssetManager> {
   Future<void> _deleteDestination(String destination) async {
     final confirmed = await _showConfirmDialog(
       title: 'Delete Destination',
-      content: 'Permanently delete $destination from BILLK locations? This cannot be undone.',
+      content: 'Permanently delete $destination from DAITOM locations? This cannot be undone.',
       action: 'Delete',
       actionColor: Colors.red,
     );
@@ -355,7 +355,7 @@ class _AssetManagerState extends State<AssetManager> {
 
     final confirmed = await _showConfirmDialog(
       title: 'Delete Bike',
-      content: 'Permanently delete $bike from BILLK bikes? This cannot be undone.',
+      content: 'Permanently delete $bike from DAITOM bikes? This cannot be undone.',
       action: 'Delete',
       actionColor: Colors.red,
     );
@@ -396,7 +396,7 @@ class _AssetManagerState extends State<AssetManager> {
 
     final confirmed = await _showConfirmDialog(
       title: 'Delete Battery',
-      content: 'Permanently delete $batteryName from BILLK assets? This cannot be undone.',
+      content: 'Permanently delete $batteryName from DAITOM assets? This cannot be undone.',
       action: 'Delete',
       actionColor: Colors.red,
     );
@@ -613,12 +613,12 @@ class _AssetManagerState extends State<AssetManager> {
     final theme = Theme.of(context);
     
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Asset Manager', style: TextStyle(fontWeight: FontWeight.w700)),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: theme.colorScheme.onSurface,
-      ),
+      // appBar: AppBar(
+      //   title: const Text('Asset Manager', style: TextStyle(fontWeight: FontWeight.w700)),
+      //   elevation: 0,
+      //   backgroundColor: Colors.transparent,
+      //   foregroundColor: theme.colorScheme.onSurface,
+      // ),
       body: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.paddingOf(context).bottom + 20),
         child: Column(

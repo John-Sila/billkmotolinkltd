@@ -756,7 +756,7 @@ class _WageEvaluatorScreenState extends State<WageEvaluatorScreen> {
                     pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text("BILLK MOTOLINK LTD", style: PdfTheme.title),
+                        pw.Text("DAITOM MOTORLINK LTD", style: PdfTheme.title),
                         pw.Text(
                           "Human Resource Management System",
                           style: PdfTheme.label,
@@ -886,7 +886,7 @@ class _WageEvaluatorScreenState extends State<WageEvaluatorScreen> {
                   pw.Image(signatureImage, width: 100, height: 40),
                   pw.Container(width: 120, height: 1, color: PdfColors.grey400),
                   pw.SizedBox(height: 5),
-                  pw.Text("Paul Kyonda",
+                  pw.Text("Thomas Kyalo",
                       style: pw.TextStyle(
                           fontSize: 10, fontWeight: pw.FontWeight.bold)),
                   pw.Text(

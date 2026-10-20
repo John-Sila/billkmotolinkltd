@@ -1,6 +1,10 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'package:billkmotolinkltd/services/toast_service.dart';
+import 'package:daitom/pages/widgets/mpesa_payment_dialog.dart';
+import 'package:daitom/pages/widgets/progress_steps_dialog.dart';
+import 'package:daitom/services/mpesa_payment_service.dart';
+import 'package:daitom/services/payment_config.dart';
+import 'package:daitom/services/toast_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -38,6 +42,12 @@ class _Correctionstate extends State<Corrections> {
   bool hasClockedOutToday = false;
   bool isClockingOut = false;
   bool? _isOnline;
+
+  /// A payment that went through but whose correction could not be saved
+  /// (network drop, Firestore error...). It is reused on the next attempt so
+  /// the rider is never asked to pay twice for the same correction.
+  /// Held in memory only: it is lost if the app is closed.
+  MpesaPaymentResult? _unrecordedPayment;
 
   double deviation = 0.0;
   double netIncome = 0.0;
@@ -77,7 +87,6 @@ class _Correctionstate extends State<Corrections> {
     todaysIABController.addListener(updateNetIncome);
     prevIABController.addListener(updateNetIncome);
 
-
     // Rebuild whenever any input changes
     grossIncomeController.addListener(_updateState);
     todaysIABController.addListener(_updateState);
@@ -87,7 +96,9 @@ class _Correctionstate extends State<Corrections> {
     otherExpenseController.addListener(_updateState);
   }
 
-  void _updateState() => setState(() {});
+  void _updateState() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -155,18 +166,26 @@ class _Correctionstate extends State<Corrections> {
       target = ((userData['dailyTarget']) ?? 0).toDouble();
 
       // --- Fetch requirements ---
+      // Always replace the local copy. If there are none left (e.g. the last
+      // one was just corrected) the screen must not keep showing the old date,
+      // otherwise the same day could be corrected, and charged, twice.
       final reqMap = Map<String, dynamic>.from(userData['requirements'] ?? {});
+      requirements = reqMap;
       if (reqMap.isNotEmpty) {
-        requirements = reqMap;
-        selectedKey = requirements.keys.first;
-        _updateVariables(selectedKey!);
+        _updateVariables(reqMap.keys.first);
+      } else {
+        selectedKey = null;
+        selectedDate = "";
+        dayOfWeek = "";
+        weekRange = "";
+        appBalance = 0;
+        prevIABController.clear();
       }
 
-
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     } catch (e) {
       ToastService.error("Error fetching data: $e");
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -176,7 +195,6 @@ class _Correctionstate extends State<Corrections> {
       deviation = gross - target;
     });
     updateNetIncome();
-    
   }
 
   void updateNetIncome() {
@@ -196,24 +214,28 @@ class _Correctionstate extends State<Corrections> {
     });
   }
 
+  bool _isNum(String s) => double.tryParse(s.trim()) != null;
+
   bool get canCorrect {
-    if (grossIncomeController.text.isEmpty ||
-        todaysIABController.text.isEmpty ||
-        prevIABController.text.isEmpty) {
+    // A requirement must be selected
+    if (selectedKey == null) return false;
+
+    // Every number must actually be a number (not just non-empty)
+    if (!_isNum(grossIncomeController.text) ||
+        !_isNum(todaysIABController.text) ||
+        !_isNum(prevIABController.text)) {
       return false;
     }
 
-    // All checked expenses must have a value
+    // All checked expenses must have a valid value
     for (var key in expensesChecked.keys) {
       if (!expensesChecked[key]!) continue;
 
-      if (key == 'Other') {
-        // Other must have both amount AND description
-        if (expenseControllers[key]!.text.isEmpty || otherExpenseController.text.isEmpty) {
-          return false;
-        }
-      } else {
-        if (expenseControllers[key]!.text.isEmpty) return false;
+      if (!_isNum(expenseControllers[key]!.text)) return false;
+
+      // Other must have both amount AND description
+      if (key == 'Other' && otherExpenseController.text.trim().isEmpty) {
+        return false;
       }
     }
 
@@ -235,7 +257,7 @@ class _Correctionstate extends State<Corrections> {
 
   void showCorrectionsConfirmationDialog() {
     final localTheme = Theme.of(context);
-    
+
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -269,6 +291,25 @@ class _Correctionstate extends State<Corrections> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              if (_unrecordedPayment != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Your earlier M-Pesa payment will be used. You will not be charged again.',
+                  style: localTheme.textTheme.bodySmall?.copyWith(
+                    color: localTheme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ] else if (kMpesaPaymentEnabled && netIncome.round() >= 1) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'You will get an M-Pesa prompt for KES ${NumberFormat('#,##0').format(netIncome.round())}. Keep your phone nearby.',
+                  style: localTheme.textTheme.bodySmall?.copyWith(
+                    color: localTheme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -284,9 +325,9 @@ class _Correctionstate extends State<Corrections> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 foregroundColor: Colors.white,
-                backgroundColor: isClockingOut 
-                  ? localTheme.colorScheme.primaryContainer 
-                  : localTheme.colorScheme.primary,
+                backgroundColor: isClockingOut
+                    ? localTheme.colorScheme.primaryContainer
+                    : localTheme.colorScheme.primary,
                 surfaceTintColor: Colors.transparent,
               ),
               // Use the variable to freeze the button while processing
@@ -333,6 +374,14 @@ class _Correctionstate extends State<Corrections> {
     );
   }
 
+  /// Extra line for error messages when money was taken but not recorded.
+  String _paidNote() {
+    final p = _unrecordedPayment;
+    if (p == null) return '';
+    return "\n\nYour M-Pesa payment (receipt ${p.receipt}) went through. "
+        "Tap Retry and you will not be charged again.";
+  }
+
   Future<void> correct(BuildContext dialogContext) async {
     // 1. Guard check BEFORE mutating processing states or dismissing UI
     if (!canCorrect) {
@@ -340,6 +389,7 @@ class _Correctionstate extends State<Corrections> {
       return;
     }
 
+    // Set synchronously, before any await, so a second tap cannot slip in.
     if (isClockingOut) return;
 
     // 2. Set loading state and close dialog safely
@@ -351,27 +401,63 @@ class _Correctionstate extends State<Corrections> {
       Navigator.pop(dialogContext);
     }
 
+    // The "what's happening now" dialog shown after the payment succeeds.
+    ProgressStepsController? progress;
+
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
       final now = DateTime.now();
 
       final fs = FirebaseFirestore.instance;
       final userRef = fs.collection('users').doc(uid);
-      final deviationsRef = fs.collection('deviations').doc(weekRange);
+      final generalRef = fs.collection('general').doc('general_variables');
+
+      // Capture the requirement being corrected now, so nothing on screen can
+      // change it while the payment dialog is open.
+      final reqKey = selectedKey!;
+
+      // The day being corrected decides EVERY date-based path below, not today:
+      //   users/{uid}                  clockouts.<dd MMM yyyy>
+      //   users/{uid}                  netIncomes.<Month> / workedDays.<Month>
+      //   deviations/<week label>      <userName>.<weekday>
+      //   general/general_variables    annual_incomes.<year>... / monthly_incomes.<year>_<Month>...
+      final correctedDate = _parseRequirementDate(selectedDate);
+      if (correctedDate == null) {
+        _showRetryDialog(
+          "Could not read the date \"$selectedDate\". Pull down to refresh and try again.",
+          allowRetry: false,
+        );
+        return;
+      }
+      final dateKey = DateFormat("dd MMM yyyy", "en_US").format(correctedDate);
+      final weekdayLabel = DateFormat("EEEE", "en_US").format(correctedDate);
+      final weekLabel = getWeekLabel(correctedDate);
+      final monthName = DateFormat("MMMM").format(correctedDate);
+      final year = correctedDate.year.toString();
+      final monthKey = "${year}_$monthName";
+      if (weekRange.isNotEmpty && weekRange != weekLabel) {
+        debugPrint(
+          'Requirement weekRange "$weekRange" differs from "$weekLabel"; '
+          'using "$weekLabel", the same label clock-out uses.',
+        );
+      }
+      final deviationsRef = fs.collection('deviations').doc(weekLabel);
 
       final userSnap = await userRef.get();
       if (!userSnap.exists) {
         ToastService.error("User not found");
         return;
       }
-      
-      final userName = userSnap.get('userName');
-      final pendingAmountOld = userSnap.get('pendingAmount') ?? 0.0;
+
+      final riderName = (userSnap.data()?['userName'] ?? '').toString();
+
+      // All parsing happens BEFORE the payment, so a bad number can never
+      // cost the rider money.
       final prevInApp = double.parse(prevIABController.text);
       final todaysIAB = double.parse(todaysIABController.text);
 
       // Expenses compilation
-      Map<String, dynamic> expenseData = {};
+      final Map<String, dynamic> expenseData = {};
       expenseControllers.forEach((key, ctrl) {
         if (expensesChecked[key]! && key != 'Other') {
           expenseData[key] = double.parse(ctrl.text);
@@ -384,11 +470,50 @@ class _Correctionstate extends State<Corrections> {
         expenseData[description] = value;
       }
 
+      final double newExpenses =
+          expenseData.values.whereType<num>().fold(0.0, (s, v) => s + v);
+
       final gross = double.parse(double.parse(grossIncomeController.text).toStringAsFixed(2));
       final commission = commissionPercentage;
       final netIncome = double.parse((gross * (1 - commission)
-          - (todaysIAB - prevInApp)
-          - expenseData.values.whereType<num>().fold(0.0, (s, v) => s + v)).toStringAsFixed(2));
+              - (todaysIAB - prevInApp)
+              - newExpenses)
+          .toStringAsFixed(2));
+
+      // ---- M-Pesa payment ---------------------------------------------------
+      // Same prompt as a normal clock-out. Nothing is written unless the
+      // payment succeeds, and what gets recorded is what Safaricom confirmed.
+      // If an earlier attempt was paid but not saved, that payment is reused
+      // instead of prompting again.
+      final amountDue = netIncome.round();
+      var payment = _unrecordedPayment;
+      if (payment == null && kMpesaPaymentEnabled && amountDue >= 1) {
+        if (!mounted) return;
+        payment = await showMpesaPaymentDialog(
+          context,
+          amount: amountDue,
+          initialPhone: (userSnap.data()?['phoneNumber'] ?? '').toString(),
+        );
+        if (payment == null) {
+          ToastService.warning("Correction cancelled. The payment was not completed.");
+          return;
+        }
+        _unrecordedPayment = payment; // keep it until the save succeeds
+      }
+      final paidAmount = payment?.amount ?? 0;
+
+      // ---- Progress dialog --------------------------------------------------
+      // Opens the moment the payment is confirmed and stays until every write
+      // is finished, so the rider knows when it is really done.
+      progress = ProgressStepsController([
+        if (payment != null) 'Payment confirmed',
+        'Saving correction',
+        'Refreshing your data',
+      ], title: 'Finishing correction');
+      if (!mounted) return;
+      progress.show(context);
+      progress.begin();
+      if (payment != null) await progress.next(); // Payment confirmed
 
       final clockoutData = {
         "grossIncome": gross,
@@ -402,23 +527,16 @@ class _Correctionstate extends State<Corrections> {
         "mileageDifference": 0,
         "posted_at": now,
         "timeElapsed": "Void due to correction",
+        if (payment != null)
+          "payment": {
+            "method": "mpesa_stk",
+            "checkoutId": payment.checkoutId,
+            "receipt": payment.receipt,
+            "amountDue": amountDue,
+            "amountPaid": payment.amount,
+            "paidAt": DateTime.now(),
+          },
       };
-
-      final monthName = DateFormat("MMMM").format(now);
-      final notificationId = DateTime.now().millisecondsSinceEpoch.toString();
-        
-      await userRef.update({
-        "clockouts.$selectedDate": clockoutData,
-        "pendingAmount": double.parse((pendingAmountOld + netIncome).toStringAsFixed(2)),
-        "netIncomes.$monthName": FieldValue.increment(netIncome),
-        "workedDays.$monthName": FieldValue.increment(1),
-        'notifications.$notificationId': {
-          'isRead': false,
-          'message': 'You have successfully corrected this date.',
-          'time': now,
-        },
-        "numberOfNotifications": FieldValue.increment(1),
-      });
 
       final deviationData = {
         "grossIncome": gross,
@@ -427,31 +545,141 @@ class _Correctionstate extends State<Corrections> {
         "netGrossDifference": gross - netIncome,
       };
 
-      await deviationsRef.set({
-        userName: {dayOfWeek: deviationData}
-      }, SetOptions(merge: true));
+      final notificationId = DateTime.now().millisecondsSinceEpoch.toString();
 
-      ToastService.success("Correction was completed successfully");
+      double r2(double v) => double.parse(v.toStringAsFixed(2));
 
-      await deleteThisRequirement(uid: uid, targetDate: selectedDate);
-      await _updateYearlyAndMonthlyStats(
-        userName: '$userName',
-        gross: gross,
-        netIncome: netIncome,
-        expenseData: expenseData,
-      );
+      // ---- One atomic save ----------------------------------------------------
+      // Clock-out record, pending amount, monthly totals, deviations, annual and
+      // monthly stats and the requirement delete all succeed or fail together.
+      // Increments (not absolute values) are used so a stale read can never
+      // overwrite a newer number.
+      var requirementGone = false;
 
-      // Refresh data after successful correction runs
+      await fs.runTransaction((tx) async {
+        requirementGone = false; // the handler can run more than once
+
+        final data = (await tx.get(userRef)).data() ?? {};
+
+        // The requirement must still exist. If it doesn't, someone (another
+        // device, an admin) already used or changed it: write nothing.
+        final reqs = Map<String, dynamic>.from(data['requirements'] ?? {});
+        if (!reqs.containsKey(reqKey)) {
+          requirementGone = true;
+          return;
+        }
+
+        // If this day already has a record we are REPLACING it, so only the
+        // difference is applied and the day is not counted as worked twice.
+        final old = (data['clockouts'] as Map?)?[dateKey] as Map?;
+        final hadRecord = old != null;
+        final double oldNet = ((old?['netIncome'] ?? 0) as num).toDouble();
+        final double oldGross = ((old?['grossIncome'] ?? 0) as num).toDouble();
+        final double oldExp = ((old?['expenses'] as Map?)?.values ?? const [])
+            .whereType<num>()
+            .fold(0.0, (s, v) => s + v);
+
+        final dNet = netIncome - oldNet;
+        final dGross = gross - oldGross;
+        final dExp = newExpenses - oldExp;
+
+        tx.update(userRef, {
+          "clockouts.$dateKey": clockoutData,
+          "pendingAmount": FieldValue.increment(r2(dNet - paidAmount)),
+          "netIncomes.$monthName": FieldValue.increment(r2(dNet)),
+          if (!hadRecord) "workedDays.$monthName": FieldValue.increment(1),
+          "requirements.$reqKey": FieldValue.delete(),
+          'notifications.$notificationId': {
+            'isRead': false,
+            'message': 'You have successfully corrected this date.',
+            'time': now,
+          },
+          "numberOfNotifications": FieldValue.increment(1),
+        });
+
+        tx.set(
+          deviationsRef,
+          {
+            riderName: {weekdayLabel: deviationData}
+          },
+          SetOptions(merge: true),
+        );
+
+        tx.set(
+          generalRef,
+          {
+            'annual_incomes': {
+              year: {
+                riderName: {
+                  'gross': FieldValue.increment(r2(dGross)),
+                  'net': FieldValue.increment(r2(dNet)),
+                  'expenses': FieldValue.increment(r2(dExp)),
+                  'dateAppended': now,
+                }
+              }
+            },
+            'monthly_incomes': {
+              monthKey: {
+                riderName: {
+                  'gross': FieldValue.increment(r2(dGross)),
+                  'net': FieldValue.increment(r2(dNet)),
+                  'expenses': FieldValue.increment(r2(dExp)),
+                  'dateAppended': now,
+                }
+              }
+            },
+          },
+          SetOptions(merge: true),
+        );
+      });
+
+      if (requirementGone) {
+        // Nothing was written. Any payment stays remembered (see _paidNote) and
+        // is credited on the rider's next correction.
+        await progress.abort();
+        _showRetryDialog(
+          "This requirement was already corrected or changed. Pull down to refresh."
+          "${_unrecordedPayment != null ? "\n\nYour M-Pesa payment (receipt ${_unrecordedPayment!.receipt}) went through. If you were charged, show this receipt to an admin." : ""}",
+          allowRetry: false,
+        );
+        await fetchInitialData();
+        return;
+      }
+
+      // Saved. The payment is now accounted for.
+      _unrecordedPayment = null;
+
+      if (payment != null) {
+        try {
+          await MpesaPaymentService().consume(payment.checkoutId);
+        } catch (e) {
+          debugPrint('Could not mark payment as used: $e');
+        }
+      }
+      await progress.next(); // Saving correction
+
+      if (!mounted) return;
+      _resetForm();
       await fetchInitialData();
+      await progress.next(); // Refreshing your data
 
+      await progress.finish(); // all green, then closes
+      ToastService.success("Correction was completed successfully");
     } on FirebaseException catch (e) {
-      _showRetryDialog("Firestore error: ${e.code} - ${e.message}");
+      await progress?.abort();
+      _showRetryDialog("Firestore error: ${e.code} - ${e.message}${_paidNote()}");
     } catch (e, stack) {
+      await progress?.abort();
       debugPrint("Unexpected error: $e");
       debugPrint("Stacktrace: $stack");
-      _showRetryDialog("Unexpected error occurred: date=$selectedDate, weekRange=$weekRange, dayOfWeek=$dayOfWeek. Please try again.");
+      _showRetryDialog(
+        "Unexpected error occurred: date=$selectedDate, weekRange=$weekRange, dayOfWeek=$dayOfWeek. Please try again.${_paidNote()}",
+      );
     } finally {
-      // 3. This block ALWAYS fires, ensuring your UI state variable is unlocked 
+      // Safety net: never leave the progress dialog stuck on screen.
+      progress?.close();
+
+      // 3. This block ALWAYS fires, ensuring your UI state variable is unlocked
       if (mounted) {
         setState(() {
           isClockingOut = false;
@@ -460,83 +688,45 @@ class _Correctionstate extends State<Corrections> {
     }
   }
 
-  Future<void> _updateYearlyAndMonthlyStats({
-    required String userName, // <-- pass this from clockOut
-    required double gross,
-    required double netIncome,
-    required Map<String, dynamic> expenseData,
-  }) async {
-    final now = DateTime.now();
-    final year = now.year.toString(); // "2026"
-    final month = DateFormat("MMMM").format(now); // "April"
-    final monthKey = "${year}_$month"; // "2026_April"
-
-    final fs = FirebaseFirestore.instance;
-    final generalRef = fs
-        .collection('general')
-        .doc('general_variables');
-    try {
-      final snap = await generalRef.get();
-      final data = Map<String, dynamic>.from(snap.data() ?? {});
-
-      // 1. annual_incomes.$year.$userName
-      final annualYearPath = "annual_incomes.$year.$userName";
-      final annualSnap = Map<String, dynamic>.from(
-        (((data["annual_incomes"] as Map<String, dynamic>? ?? {})[year]
-                as Map<String, dynamic>? ?? {})[userName]
-            as Map<String, dynamic>? ?? {}),
-      );
-
-      final aGross = (annualSnap["gross"] ?? 0.0) as num;
-      final aNet = (annualSnap["net"] ?? 0.0) as num;
-      final aExp = (annualSnap["expenses"] ?? 0.0) as num;
-
-      // 2. monthly_incomes.$monthKey.$userName
-      final monthlyPath = "monthly_incomes.$monthKey.$userName";
-      final monthlySnap = Map<String, dynamic>.from(
-        (((data["monthly_incomes"] as Map<String, dynamic>? ?? {})[monthKey]
-                as Map<String, dynamic>? ?? {})[userName]
-            as Map<String, dynamic>? ?? {}),
-      );
-
-      final mGross = (monthlySnap["gross"] ?? 0.0) as num;
-      final mNet = (monthlySnap["net"] ?? 0.0) as num;
-      final mExp = (monthlySnap["expenses"] ?? 0.0) as num;
-
-      // 3. Compute total expenses
-      final totalExpenses = expenseData.values
-          .whereType<num>()
-          .fold(0.0, (s, v) => s + v);
-
-      // 4. Update Firestore in one `.update`
-      await generalRef.update({
-        // annual_incomes.2026.userName.gross, net, expenses, dateAppended
-        "$annualYearPath.gross": aGross + gross,
-        "$annualYearPath.net": aNet + netIncome,
-        "$annualYearPath.expenses": aExp + totalExpenses,
-        "$annualYearPath.dateAppended": DateTime.now(),
-
-        // monthly_incomes.2026_April.userName.gross, net, expenses, dateAppended
-        "$monthlyPath.gross": mGross + gross,
-        "$monthlyPath.net": mNet + netIncome,
-        "$monthlyPath.expenses": mExp + totalExpenses,
-        "$monthlyPath.dateAppended": DateTime.now(),
-      });
-    } catch (e) {
-      ToastService.error("Failed to update stats: $e");
-    }
+  /// Clears everything the rider typed so the next correction starts clean.
+  void _resetForm() {
+    grossIncomeController.clear();
+    todaysIABController.clear();
+    otherExpenseController.clear();
+    expenseControllers.forEach((_, c) => c.clear());
+    setState(() {
+      expensesChecked.updateAll((_, __) => false);
+      netIncome = 0.0;
+      deviation = 0.0;
+      totalExpenses = 0.0;
+    });
   }
-  
-  void _showRetryDialog(String message) {
+
+  /// Reads the requirement's date text (e.g. "09 Dec 2025").
+  /// Returns null if it can't be read, so we never write to the wrong day.
+  DateTime? _parseRequirementDate(String raw) {
+    final text = raw.trim();
+    for (final pattern in const ['dd MMM yyyy', 'd MMM yyyy', 'dd MMMM yyyy']) {
+      try {
+        return DateFormat(pattern, 'en_US').parse(text);
+      } catch (_) {
+        // try the next pattern
+      }
+    }
+    return null;
+  }
+
+  void _showRetryDialog(String message, {bool allowRetry = true}) {
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
+      builder: (dialogContext) => Dialog(
         insetPadding: const EdgeInsets.all(24),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            color: Theme.of(context).colorScheme.surface,
+            color: Theme.of(dialogContext).colorScheme.surface,
           ),
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -549,67 +739,75 @@ class _Correctionstate extends State<Corrections> {
                   children: [
                     Icon(
                       Icons.error_outline,
-                      color: Theme.of(context).colorScheme.error,
+                      color: Theme.of(dialogContext).colorScheme.error,
                       size: 28,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         "Correction Failed",
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: Theme.of(dialogContext).colorScheme.onSurface,
                         ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Large warning icon - centered
                 Icon(
                   Icons.wifi_off_outlined,
-                  color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                  color: Theme.of(dialogContext).colorScheme.error.withOpacity(0.3),
                   size: 64,
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Message - fully centered
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
                     message,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    style: Theme.of(dialogContext).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
                 const SizedBox(height: 32),
-                
-                // Buttons - spaced evenly
+
+                // Buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text("Retry"),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Theme.of(context).colorScheme.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                    if (allowRetry) ...[
+                      Expanded(
+                        child: TextButton.icon(
+                          // Retry reopens the confirmation, so it really retries.
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            if (canCorrect && !isClockingOut) {
+                              showCorrectionsConfirmationDialog();
+                            }
+                          },
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text("Retry"),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Theme.of(dialogContext).colorScheme.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
+                      const SizedBox(width: 12),
+                    ],
                     Expanded(
                       child: TextButton.icon(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.pop(dialogContext),
                         icon: const Icon(Icons.close, size: 18),
-                        label: const Text("Cancel"),
+                        label: Text(allowRetry ? "Cancel" : "Close"),
                         style: TextButton.styleFrom(
-                          foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                          foregroundColor: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
@@ -622,53 +820,6 @@ class _Correctionstate extends State<Corrections> {
         ),
       ),
     );
-  }
-
-  Future<void> deleteThisRequirement({
-    required String uid,
-    required String targetDate, // e.g. "09 Dec 2025"
-  }) async {
-    final firestore = FirebaseFirestore.instance;
-    final userDocRef = firestore.collection('users').doc(uid);
-
-    try {
-      // Get current requirements map
-      final docSnap = await userDocRef.get();
-      if (!docSnap.exists) {
-        throw Exception('User document not found');
-      }
-
-      final data = docSnap.data();
-      final requirements = data?['requirements'] as Map<String, dynamic>?;
-      
-      if (requirements == null) {
-        throw Exception('No requirements found');
-      }
-
-      // Find the timestamp key with matching date
-      String? timestampKeyToDelete;
-      requirements.forEach((timestampKey, requirementData) {
-        if (requirementData['date'] == targetDate) {
-          timestampKeyToDelete = timestampKey;
-        }
-      });
-
-      if (timestampKeyToDelete == null) {
-        throw Exception('No requirement found for date: $targetDate');
-      }
-      // Delete the specific timestamp key
-      await userDocRef.update({
-        'requirements.$timestampKeyToDelete': FieldValue.delete(),
-      });
-
-      ToastService.success("$targetDate cleared.");
-      grossIncomeController.clear();
-      todaysIABController.clear();
-      await fetchInitialData(); // refresh UI
-
-    } catch (e) {
-      ToastService.error('Error: $e');
-    }
   }
 
   String resolveCorrectionsText({
@@ -685,6 +836,7 @@ class _Correctionstate extends State<Corrections> {
 
   Future<void> checkIsOnline() async {
     final online = await isOnline();
+    if (!mounted) return;
     setState(() {
       _isOnline = online;
     });
@@ -713,7 +865,7 @@ class _Correctionstate extends State<Corrections> {
         await fetchInitialData();
         await checkIsOnline();
       },
-      child:Scaffold(
+      child: Scaffold(
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(22),
@@ -729,7 +881,6 @@ class _Correctionstate extends State<Corrections> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
 
                 Text(
                   "Deviation: KSh ${deviation.toStringAsFixed(2)}",
@@ -763,7 +914,6 @@ class _Correctionstate extends State<Corrections> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                
 
                 // Gross Income
                 _buildTextField(
@@ -784,7 +934,6 @@ class _Correctionstate extends State<Corrections> {
                   icon: Icons.percent_outlined,
                 ),
                 const SizedBox(height: 12),
-
 
                 // Today's IAB
                 _buildTextField(
@@ -849,44 +998,44 @@ class _Correctionstate extends State<Corrections> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
-                                color: isEnabled 
-                                  ? theme.colorScheme.onSurface  // Theme-aware text color
-                                  : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                color: isEnabled
+                                    ? theme.colorScheme.onSurface // Theme-aware text color
+                                    : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                               ),
                               decoration: InputDecoration(
                                 hintText: "Enter amount",
                                 hintStyle: TextStyle(
                                   fontSize: 16,
-                                  color: isEnabled 
-                                    ? theme.colorScheme.onSurfaceVariant
-                                    : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                  color: isEnabled
+                                      ? theme.colorScheme.onSurfaceVariant
+                                      : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                                 ),
                                 prefixIcon: Icon(
                                   Icons.attach_money_outlined,
-                                  color: isEnabled 
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                  color: isEnabled
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                                   size: 24,
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide(color: theme.colorScheme.outline!),
+                                  borderSide: BorderSide(color: theme.colorScheme.outline),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide(color: theme.colorScheme.outline!),
+                                  borderSide: BorderSide(color: theme.colorScheme.outline),
                                 ),
                                 disabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide(color: theme.colorScheme.outlineVariant!),
+                                  borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
                                 ),
                                 filled: true,
-                                fillColor: theme.colorScheme.surface,  // Theme surface color
+                                fillColor: theme.colorScheme.surface, // Theme surface color
                               ),
                             ),
                           ),
@@ -949,18 +1098,14 @@ class _Correctionstate extends State<Corrections> {
                             ),
                             style: const TextStyle(fontSize: 18, color: Colors.white),
                           ),
-
                   ),
                 )
-
-
               ],
             ),
           ),
         ),
-      )
-
-      );
+      ),
+    );
   }
 }
 

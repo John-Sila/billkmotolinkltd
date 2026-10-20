@@ -1,10 +1,10 @@
-import 'package:billkmotolinkltd/pages/settings/calendar_of_events.dart';
+import 'package:daitom/pages/settings/calendar_of_events.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:billkmotolinkltd/pages/settings/help_and_faq.dart';
-import 'package:billkmotolinkltd/pages/settings/my_profile.dart';
-import 'package:billkmotolinkltd/pages/settings/terms_and_conditions.dart';
-import 'package:billkmotolinkltd/pages/settings/view_and_clear_app_data.dart';
+import 'package:daitom/pages/settings/help_and_faq.dart';
+import 'package:daitom/pages/settings/my_profile.dart';
+import 'package:daitom/pages/settings/terms_and_conditions.dart';
+import 'package:daitom/pages/settings/view_and_clear_app_data.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class UserSettings extends StatefulWidget {
@@ -123,7 +123,7 @@ class _UserSettingsState extends State<UserSettings> {
           _buildNavTile(
             context,
             Icons.info_outline,
-            'About BILLK MOTOLINK LTD',
+            'About Daitom Motorlink',
             'Version $_appVersion | Learn more about us',
             () {},
           ),

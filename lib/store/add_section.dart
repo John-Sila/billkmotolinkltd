@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
-import 'package:billkmotolinkltd/pages/widgets/qr_scanner.dart';
-import 'package:billkmotolinkltd/services/toast_service.dart';
+import 'package:daitom/pages/widgets/qr_scanner.dart';
+import 'package:daitom/services/toast_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -43,7 +43,7 @@ class _AddSectionState extends State<AddSection> {
   String generateId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     final rand = Random();
-    return "BILLK-${List.generate(8, (_) => chars[rand.nextInt(chars.length)]).join()}";
+    return "DAITOM-${List.generate(8, (_) => chars[rand.nextInt(chars.length)]).join()}";
   }
 
   @override

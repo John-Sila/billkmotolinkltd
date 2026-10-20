@@ -87,7 +87,7 @@ class _DevicesState extends State<Devices> {
             'dateEdited': Timestamp.fromDate(now),
             'entries': [
               ...((traces[todayKey] as Map<String, dynamic>?)?['entries'] as List? ?? []),
-              'Dropped through repair by Admin at ${_formatTime(now)} at BILLK MOTOLINK PARK',
+              'Dropped through repair by Admin at ${_formatTime(now)} at DAITOM MOTORLINK PARK',
             ],
           };
 

@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:billkmotolinkltd/pages/widgets/qr_scanner.dart';
-import 'package:billkmotolinkltd/services/toast_service.dart';
-import 'package:billkmotolinkltd/utils/utility_functions.dart';
+import 'package:daitom/pages/widgets/qr_scanner.dart';
+import 'package:daitom/services/toast_service.dart';
+import 'package:daitom/utils/utility_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -58,6 +58,39 @@ class _ClockInState extends State<ClockIn> {
 
 
   final _firestore = FirebaseFirestore.instance;
+
+  /// general/general_variables/battery_availability
+  /// true  -> the business has batteries: scan them and write to `batteries`.
+  /// false -> batteries are rented / not registered: only the bike is needed
+  ///          and nothing is written to `batteries`.
+  /// A missing field is treated as true so existing behaviour is unchanged.
+  bool batteryAvailability = true;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _generalSub;
+
+  static bool _readBatteryAvailability(Map<String, dynamic>? data) =>
+      data?['battery_availability'] != false;
+
+  /// Keeps `batteryAvailability` live, so the screen switches as soon as an
+  /// admin flips the flag.
+  void _listenBatteryAvailability() {
+    _generalSub = _firestore
+        .collection('general')
+        .doc('general_variables')
+        .snapshots()
+        .listen((snap) {
+      final available = _readBatteryAvailability(snap.data());
+      if (!mounted || available == batteryAvailability) return;
+      setState(() {
+        batteryAvailability = available;
+        if (!available) {
+          // Nothing to scan any more — drop anything scanned earlier.
+          scannedBatteries.clear();
+          scannedBatteryCodes.clear();
+          scanning = false;
+        }
+      });
+    }, onError: (e) => debugPrint('battery_availability listener: $e'));
+  }
 
   /// The shift ('day' | 'night') this rider was assigned to on the Assignments
   /// page. null = not set yet (e.g. assigned before shifts existed).
@@ -139,6 +172,7 @@ class _ClockInState extends State<ClockIn> {
     _bikesDisplayFuture = fetchBikes();
 
     _loadAssignedBike();
+    _listenBatteryAvailability();
 
     _updateTime();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
@@ -190,6 +224,7 @@ class _ClockInState extends State<ClockIn> {
   @override
   void dispose() {
     _timer.cancel();
+    _generalSub?.cancel();
     super.dispose();
   }
 
@@ -224,6 +259,9 @@ class _ClockInState extends State<ClockIn> {
 
   /// Scan battery
   Future<void> scanBattery() async {
+    // No Daitom batteries right now: nothing to scan.
+    if (!batteryAvailability) return;
+
     if (scannedBatteries.length >= maxScans) {
       ToastService.warning("You can only scan up to $maxScans batteries");
       return;
@@ -309,7 +347,8 @@ class _ClockInState extends State<ClockIn> {
       return;
     }
 
-    if (scannedBatteries.isEmpty) {
+    // Quick guard using the live value; re-checked against a fresh read below.
+    if (batteryAvailability && scannedBatteries.isEmpty) {
       ToastService.error("Scan at least one battery");
       return;
     }
@@ -321,6 +360,22 @@ class _ClockInState extends State<ClockIn> {
     });
 
     try {
+      // Read general_variables once, up front. This decides how we write:
+      //   battery_availability == true  -> full flow (batteries are written)
+      //   battery_availability == false -> short flow (no battery writes)
+      final generalRef = FirebaseFirestore.instance
+          .collection('general')
+          .doc('general_variables');
+      final generalSnapshot = await generalRef.get();
+      final generalData = generalSnapshot.data() ?? {};
+      final useBatteries = _readBatteryAvailability(generalData);
+
+      if (useBatteries && scannedBatteries.isEmpty) {
+        // The flag flipped to true after the screen was drawn.
+        ToastService.error("Scan at least one battery");
+        return;
+      }
+
       ToastService.info("Clocking in...");
 
       final now = DateTime.now();
@@ -352,23 +407,25 @@ class _ClockInState extends State<ClockIn> {
         'numberOfNotifications': FieldValue.increment(1),
       });
 
-      // Update batteries
-      for (final batteryName in scannedBatteries) {
-        final batteryQuery = await FirebaseFirestore.instance
-            .collection('batteries')
-            .where('batteryName', isEqualTo: batteryName)
-            .limit(1)
-            .get();
+      // Update batteries — only when the business has batteries.
+      if (useBatteries) {
+        for (final batteryName in scannedBatteries) {
+          final batteryQuery = await FirebaseFirestore.instance
+              .collection('batteries')
+              .where('batteryName', isEqualTo: batteryName)
+              .limit(1)
+              .get();
 
-        if (batteryQuery.docs.isEmpty) continue;
+          if (batteryQuery.docs.isEmpty) continue;
 
-        await batteryQuery.docs.first.reference.update({
-          'assignedRider': userName,
-          'assignedBike': selectedBike,
-          'isBooked': false,
-          'batteryLocation': 'In Motion',
-          'offTime': now,
-        });
+          await batteryQuery.docs.first.reference.update({
+            'assignedRider': userName,
+            'assignedBike': selectedBike,
+            'isBooked': false,
+            'batteryLocation': 'In Motion',
+            'offTime': now,
+          });
+        }
       }
 
       // Update the bike's slot for THIS rider's shift only. A bike has a day
@@ -376,14 +433,8 @@ class _ClockInState extends State<ClockIn> {
       // Field-level update (not a rewrite of the whole `bikes` map) so a day
       // rider and a night rider clocking in around shift change can't
       // overwrite each other.
-      final generalRef = FirebaseFirestore.instance
-          .collection('general')
-          .doc('general_variables');
-
-      final generalSnapshot = await generalRef.get();
-
       final bikes = Map<String, dynamic>.from(
-        generalSnapshot.data()?['bikes'] ?? {},
+        generalData['bikes'] ?? {},
       );
 
       if (bikes.containsKey(bikeName)) {
@@ -399,7 +450,7 @@ class _ClockInState extends State<ClockIn> {
         isClockedIn = true;
       });
 
-      resetScans();
+      if (useBatteries) resetScans();
     } catch (e, stackTrace) {
       debugPrint("ClockIn Error: $e");
       debugPrint(stackTrace.toString());
@@ -479,10 +530,12 @@ class _ClockInState extends State<ClockIn> {
                 localTheme,
                 icon: Icons.battery_full,
                 label: 'Batteries',
-                value: scannedBatteries.isNotEmpty 
-                  ? scannedBatteries.join(', ') 
-                  : 'None scanned',
-                isWarning: scannedBatteries.isEmpty,
+                value: !batteryAvailability
+                    ? 'No Daitom batteries'
+                    : (scannedBatteries.isNotEmpty
+                        ? scannedBatteries.join(', ')
+                        : 'None scanned'),
+                isWarning: batteryAvailability && scannedBatteries.isEmpty,
               ),
             ],
           ),
@@ -608,6 +661,35 @@ class _ClockInState extends State<ClockIn> {
     if (isBlocked) return "Clock Out Disabled";
 
     return "Clock In";
+  }
+
+  /// Shown instead of the scan controls when battery_availability is false.
+  Widget _buildNoBatteriesNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.battery_alert_outlined, color: Colors.orange[700], size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'No Daitom Batteries were found',
+              style: TextStyle(
+                color: Colors.orange[800],
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -771,142 +853,147 @@ class _ClockInState extends State<ClockIn> {
 
                 const SizedBox(height: 32),
 
-                /// Scan Battery button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: scanning || scannedBatteries.length >= maxScans
-                        ? null
-                        : scanBattery,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                if (!batteryAvailability) ...[
+                  /// battery_availability == false: no scanning, bike only
+                  _buildNoBatteriesNotice(),
+                ] else ...[
+                  /// Scan Battery button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: scanning || scannedBatteries.length >= maxScans
+                          ? null
+                          : scanBattery,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        scannedBatteries.length >= maxScans
+                            ? "Scan Limit Reached"
+                            : (scanning ? "Scanning..." : "Scan Battery QR"),
+                        style: const TextStyle(fontSize: 16),
                       ),
                     ),
-                    child: Text(
-                      scannedBatteries.length >= maxScans
-                          ? "Scan Limit Reached"
-                          : (scanning ? "Scanning..." : "Scan Battery QR"),
-                      style: const TextStyle(fontSize: 16),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  /// Reset button (red, borderless)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: resetScans,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        padding: const EdgeInsets.all(0),
+                      ),
+                      child: const Text("Reset"),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 22),
 
-                /// Reset button (red, borderless)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: resetScans,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      padding: const EdgeInsets.all(0),
-                    ),
-                    child: const Text("Reset"),
-                  ),
-                ),
+                  /// Display scanned batteries
+                  if (scannedBatteries.isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: scannedBatteries.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final battery = entry.value;
 
-                const SizedBox(height: 22),
-
-                /// Display scanned batteries
-                if (scannedBatteries.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: scannedBatteries.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final battery = entry.value;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.blue.withValues(alpha: 0.1),
-                              Colors.blue.withValues(alpha: 0.05),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.blue.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.blue.withValues(alpha: 0.15),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.blue.withValues(alpha: 0.1),
+                                Colors.blue.withValues(alpha: 0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: const BoxDecoration(
-                                color: Colors.blue,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.blue,
-                                    blurRadius: 12,
-                                    offset: Offset(0, 4),
-                                  ),
-                                ],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.blue.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.blue.withValues(alpha: 0.15),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
                               ),
-                              child: Center(
-                                child: Text(
-                                  "${index + 1}",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'monospace',
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: const BoxDecoration(
+                                  color: Colors.blue,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.blue,
+                                      blurRadius: 12,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    "${index + 1}",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'monospace',
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    battery,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Container(
-                                    height: 2,
-                                    width: 60,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          Colors.blue.withValues(alpha: 0.6),
-                                          Colors.blue.withValues(alpha: 0.2),
-                                        ],
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      battery,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                        height: 1.3,
                                       ),
-                                      borderRadius: BorderRadius.circular(1),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 2),
+                                    Container(
+                                      height: 2,
+                                      width: 60,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.blue.withValues(alpha: 0.6),
+                                            Colors.blue.withValues(alpha: 0.2),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(1),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                ],
 
                 const SizedBox(height: 24),
 
@@ -915,7 +1002,7 @@ class _ClockInState extends State<ClockIn> {
                   child: ElevatedButton(
                     onPressed: (selectedBike != null &&
                             assignedShift != null &&
-                            scannedBatteries.isNotEmpty &&
+                            (!batteryAvailability || scannedBatteries.isNotEmpty) &&
                             !isClockingIn &&
                             (!isSunday || isWorkingOnSunday == true) &&
                             isVerified == true)

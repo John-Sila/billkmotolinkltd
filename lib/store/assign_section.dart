@@ -1,6 +1,6 @@
-import 'package:billkmotolinkltd/pages/widgets/qr_scanner.dart';
-import 'package:billkmotolinkltd/services/toast_service.dart';
-import 'package:billkmotolinkltd/utils/utility_functions.dart';
+import 'package:daitom/pages/widgets/qr_scanner.dart';
+import 'package:daitom/services/toast_service.dart';
+import 'package:daitom/utils/utility_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';

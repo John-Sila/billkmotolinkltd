@@ -1,4 +1,4 @@
-import 'package:billkmotolinkltd/services/toast_service.dart';
+import 'package:daitom/services/toast_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -193,41 +193,99 @@ class _RequirementsState extends State<Requirements> {
     final previousBalance = double.tryParse(previousBalanceController.text) ?? 0;
 
     final date = selectedDate!;
-    final dayOfWeek = DateFormat('EEEE').format(date); // full day name
-    final formattedDate = DateFormat('dd MMM yyyy').format(date); // "08 Oct 2025"
+    final dayOfWeek = DateFormat('EEEE').format(date);
+    final formattedDate = DateFormat('dd MMM yyyy').format(date);
 
     final monday = date.subtract(Duration(days: date.weekday - 1));
     final sunday = monday.add(const Duration(days: 6));
     final weekRange =
         'Week ${weekNumber(date)} (${DateFormat('dd MMM yyyy').format(monday)} to ${DateFormat('dd MMM yyyy').format(sunday)})';
 
-    final appBalance = previousBalance;
-
     final userDocRef = firestore.collection('users').doc(selectedUserId);
-    final requirementId = DateTime.now().millisecondsSinceEpoch.toString();
-    final requirementEntry = {
-      'appBalance': appBalance,
-      'date': formattedDate,
-      'dayOfWeek': dayOfWeek,
-      'weekRange': weekRange,
-    };
-
-    final notificationId = DateTime.now().millisecondsSinceEpoch.toString();
-    final notificationEntry = {
-      'message': 'You have been required to correct $formattedDate.',
-      'time': Timestamp.now(),
-      'isRead': false,
-    };
 
     try {
-      // 1. Append requirement
-      await userDocRef.update({
-        'requirements.$requirementId': requirementEntry,
-        'notifications.$notificationId': notificationEntry,
-        'numberOfNotifications': FieldValue.increment(1),
-      });
+      // 1. Look for an existing requirement for this rider on this date
+      final userSnap = await userDocRef.get();
+      final existingReqs =
+          Map<String, dynamic>.from(userSnap.data()?['requirements'] ?? {});
 
-      ToastService.success("Requirement created successfully!");
+      final duplicateIds = existingReqs.entries
+          .where((e) => e.value is Map && e.value['date'] == formattedDate)
+          .map((e) => e.key)
+          .toList();
+
+      final isOverwrite = duplicateIds.isNotEmpty;
+
+      // 2. Ask permission before overwriting
+      if (isOverwrite) {
+        final riderName = users
+                .firstWhere((u) => u['uid'] == selectedUserId,
+                    orElse: () => {'name': 'This rider'})['name']
+                ?.toString() ??
+            'This rider';
+        final oldBalance = existingReqs[duplicateIds.first]['appBalance'];
+
+        if (!mounted) return;
+        final overwrite = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            icon: const Icon(Icons.warning_amber_rounded,
+                color: Colors.orange, size: 48),
+            title: const Text('Requirement already exists'),
+            content: Text(
+              '$riderName already has a requirement for $formattedDate '
+              '(app balance: $oldBalance).\n\n'
+              'Overwrite it with the new balance of $previousBalance?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Overwrite'),
+              ),
+            ],
+          ),
+        );
+
+        if (overwrite != true) return; // user said no: write nothing
+      }
+
+      // 3. Build the entry. Reuse the old ID when overwriting.
+      final requirementId =
+          isOverwrite ? duplicateIds.first : DateTime.now().millisecondsSinceEpoch.toString();
+
+      final notificationId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      final updates = <String, dynamic>{
+        'requirements.$requirementId': {
+          'appBalance': previousBalance,
+          'date': formattedDate,
+          'dayOfWeek': dayOfWeek,
+          'weekRange': weekRange,
+        },
+        'notifications.$notificationId': {
+          'message': isOverwrite
+              ? 'Your requirement for $formattedDate has been updated.'
+              : 'You have been required to correct $formattedDate.',
+          'time': Timestamp.now(),
+          'isRead': false,
+        },
+        'numberOfNotifications': FieldValue.increment(1),
+      };
+
+      // Clean up any older duplicates that already slipped in
+      for (final extraId in duplicateIds.skip(1)) {
+        updates['requirements.$extraId'] = FieldValue.delete();
+      }
+
+      await userDocRef.update(updates);
+
+      ToastService.success(isOverwrite
+          ? "Requirement overwritten successfully!"
+          : "Requirement created successfully!");
       previousBalanceController.clear();
     } catch (e) {
       ToastService.error("Failed to create requirement. Please try again.");
@@ -286,7 +344,7 @@ class _RequirementsState extends State<Requirements> {
                   icon: Icons.person_outline,
                   items: users.map<DropdownMenuItem<String>>((user) {
                     final rank = user['userRank']?.toString() ?? '';
-                    final isSelectable = rank == 'Manager' || rank == 'Rider' || rank == 'Systems, IT';
+                    final isSelectable = rank == 'Rider';
 
                     return DropdownMenuItem<String>(
                       value: isSelectable ? user['uid'] as String? : null,

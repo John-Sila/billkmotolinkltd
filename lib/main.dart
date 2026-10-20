@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:billkmotolinkltd/pages/absenteesm.dart';
-import 'package:billkmotolinkltd/services/toast_service.dart';
+import 'package:daitom/pages/absenteesm.dart';
+import 'package:daitom/services/toast_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -41,20 +41,17 @@ import 'pages/settings.dart';
 import 'pages/swap_batteries.dart';
 import 'services/notifier.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Edge-to-edge: the app draws behind the status bar and navigation bar. The bar
+  // colours/icon brightness follow the theme (see DaitomApp.builder below).
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-  );
-
-  await NotificationService().initialize();
-
-  runApp(const BillkMotolinkApp());
+  // Paint the logo splash straight away. Firebase and notifications are
+  // initialised behind it (see AppBootstrap) instead of before the first frame,
+  // which is what used to leave a blank screen on launch.
+  runApp(const DaitomApp());
 }
 
 Future<bool> requestAllPermissions() async {
@@ -77,24 +74,120 @@ Future<void> setupNotificationSystem() async {
 }
 
 
-class BillkMotolinkApp extends StatelessWidget {
-  const BillkMotolinkApp({super.key});
+class DaitomApp extends StatelessWidget {
+  const DaitomApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BILLK MOTOLINK LTD',
+      title: 'DAITOM MOTORLINK LTD',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
       theme: _lightTheme(),
       darkTheme: _darkTheme(),
-      home: const AuthGate(),
+      home: const AppBootstrap(),
+      // Transparent system bars, with icon colours that follow light/dark theme.
+      builder: (context, child) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final icons = isDark ? Brightness.light : Brightness.dark;
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: icons, // Android
+            statusBarBrightness: isDark ? Brightness.dark : Brightness.light, // iOS
+            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarIconBrightness: icons,
+            systemNavigationBarDividerColor: Colors.transparent,
+            systemNavigationBarContrastEnforced: false,
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 
   ThemeData _lightTheme() => AppTheme.light();
 
   ThemeData _darkTheme() => AppTheme.dark();
+}
+
+/// Shows the splash while the app's services start, then fades into [AuthGate].
+class AppBootstrap extends StatefulWidget {
+  const AppBootstrap({super.key});
+
+  @override
+  State<AppBootstrap> createState() => _AppBootstrapState();
+}
+
+class _AppBootstrapState extends State<AppBootstrap> {
+  /// The logo never flashes by: show it for at least this long even when
+  /// start-up is faster. Lower it (or set to Duration.zero) to launch faster.
+  static const Duration _minSplash = Duration(milliseconds: 1200);
+
+  bool _ready = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  Future<void> _start() async {
+    if (_error != null) setState(() => _error = null);
+
+    final minSplash = Future<void>.delayed(_minSplash);
+    try {
+      await _initialiseServices();
+      await minSplash;
+      if (!mounted) return;
+      setState(() => _ready = true);
+    } catch (e, st) {
+      debugPrint('App start-up failed: $e\n$st');
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    }
+  }
+
+  Future<void> _initialiseServices() async {
+    // Already initialised on a retry or hot restart.
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+
+    try {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+      );
+    } catch (e) {
+      // Firestore refuses settings changes once it has been used (hot restart).
+      debugPrint('Firestore settings not applied: $e');
+    }
+
+    // Notifications are optional: never block the app from opening on them.
+    try {
+      await NotificationService().initialize();
+    } catch (e) {
+      debugPrint('Notification setup failed: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 450),
+      switchInCurve: Curves.easeOut,
+      child: _ready
+          ? const AuthGate(key: ValueKey('app'))
+          : SplashScreen(
+              key: const ValueKey('splash'),
+              error: _error,
+              onRetry: _start,
+            ),
+    );
+  }
 }
 
 class AuthGate extends StatelessWidget {
@@ -106,7 +199,7 @@ class AuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SplashScreen();
+          return const SplashScreen(settled: true);
         }
 
         if (snapshot.hasData) {
@@ -523,6 +616,7 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final visibleIndices = _getVisibleIndices(_userRank);
 
     if (_isCheckingVersion) {
       return const Scaffold(
@@ -669,184 +763,38 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             backgroundColor: theme.colorScheme.surface,
             child: SafeArea(
+              // The header paints under the status bar itself (edge-to-edge), so only
+              // the bottom inset (gesture bar) is handled here.
+              top: false,
               child: Column(
                 children: [
-                  // ---------------------------------------------------------------
-                  // Header: flat two-stop brand gradient. Logo keeps its own
-                  // rounded-square shape - clipped explicitly with ClipRRect rather
-                  // than relying on the PNG's alpha. The shadow is a separate
-                  // rounded-rect Container behind it with no fill color, sized and
-                  // radius-matched to the image.
-                  // ---------------------------------------------------------------
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(24, 36, 24, 28),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          theme.colorScheme.primary,
-                          theme.colorScheme.primary.withValues(alpha: 0.82),
-                        ],
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(28),
-                        bottomRight: Radius.circular(28),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Builder(
-                          builder: (context) {
-                            // Match this to your actual asset's corner radius
-                            // (proportionally) so the clip and the shadow line up
-                            // with the art instead of guessing.
-                            const double logoSize = 80;
-                            const double logoRadius = 18;
-
-                            return Container(
-                              width: logoSize,
-                              height: logoSize,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(logoRadius),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.28),
-                                    blurRadius: 14,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(logoRadius),
-                                child: Image.asset(
-                                  'assets/logo.png',
-                                  fit: BoxFit.cover,
-                                  width: logoSize,
-                                  height: logoSize,
-                                  errorBuilder: (context, error, stackTrace) => Container(
-                                    color: Colors.white.withValues(alpha: 0.15),
-                                    child: const Icon(
-                                      Icons.school_rounded,
-                                      color: Colors.white,
-                                      size: 32,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
+                  // One scroll view for header + menu: the header scrolls away with the
+                  // list, shrinking until only the rank pill is left, pinned top-left.
+                  Expanded(
+                    child: CustomScrollView(
+                      // Remembers the scroll position across close/open (one double in
+                      // PageStorage; nothing is kept alive). Keyed by user so the next
+                      // person to log in doesn't inherit it.
+                      key: PageStorageKey('drawer-scroll-${FirebaseAuth.instance.currentUser?.uid}'),
+                      slivers: [
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _DrawerHeaderDelegate(
+                            topInset: MediaQuery.paddingOf(context).top,
+                            rank: _userRank,
+                            color: theme.colorScheme.primary,
+                          ),
                         ),
-                        const SizedBox(height: 14),
-                        Builder(
-                          builder: (context) {
-                            final userRank = _userRank;
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Text(
-                                userRank.toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                            );
-                          },
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                          sliver: SliverList.separated(
+                            itemCount: visibleIndices.length,
+                            separatorBuilder: (context, index) => const SizedBox(height: 6),
+                            itemBuilder: (context, listIndex) =>
+                                _buildDrawerItem(theme, visibleIndices[listIndex]),
+                          ),
                         ),
                       ],
-                    ),
-                  ),
-
-                  // ---------------------------------------------------------------
-                  // Nav items: each row gets its own icon container - lightly tinted
-                  // when unselected, solid brand color when selected - plus a soft
-                  // shadow and a trailing chevron on the selected row only.
-                  // ---------------------------------------------------------------
-                  Expanded(
-                    child: Builder(
-                      builder: (context) {
-                        final visibleIndices = _getVisibleIndices(_userRank);
-
-                        return ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                          itemCount: visibleIndices.length,
-                          separatorBuilder: (context, index) => const SizedBox(height: 6),
-                          itemBuilder: (context, listIndex) {
-                            final index = visibleIndices[listIndex];
-                            final isSelected = _selectedIndex == index;
-
-                            return Material(
-                              color: isSelected
-                                  ? theme.colorScheme.primary.withValues(alpha: 0.12)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(16),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () => _onDrawerItemTapped(index),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                  decoration: isSelected
-                                      ? BoxDecoration(
-                                          borderRadius: BorderRadius.circular(16),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: theme.colorScheme.primary.withValues(alpha: 0.22),
-                                              blurRadius: 10,
-                                              offset: const Offset(0, 3),
-                                            ),
-                                          ],
-                                        )
-                                      : null,
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 40,
-                                        height: 40,
-                                        decoration: BoxDecoration(
-                                          color: isSelected
-                                              ? theme.colorScheme.primary
-                                              : theme.colorScheme.primary.withValues(alpha: 0.10),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Icon(
-                                          _getDrawerIcon(index),
-                                          color: isSelected ? Colors.white : theme.colorScheme.primary,
-                                          size: 20,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Text(
-                                          _titles[index],
-                                          style: theme.textTheme.titleSmall?.copyWith(
-                                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                                            color: isSelected
-                                                ? theme.colorScheme.primary
-                                                : theme.colorScheme.onSurface.withValues(alpha: 0.85),
-                                          ),
-                                        ),
-                                      ),
-                                      if (isSelected)
-                                        Icon(
-                                          Icons.chevron_right_rounded,
-                                          color: theme.colorScheme.primary,
-                                          size: 20,
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
                     ),
                   ),
 
@@ -856,7 +804,10 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
             ),
           ),
 
-          body: _pages[_selectedIndex],
+          // Edge-to-edge: pages draw behind the system bars, so keep their content
+          // clear of the bottom gesture/navigation bar. (The AppBar already pads the
+          // status bar itself.)
+          body: SafeArea(top: false, child: _pages[_selectedIndex]),
         ),
 
         // Offline overlay: sits ON TOP of the scaffold instead of replacing it.
@@ -955,6 +906,75 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
     );
   }
 
+  /// One menu row: tinted icon tile (solid when selected), soft shadow and a
+  /// trailing chevron on the selected row only.
+  Widget _buildDrawerItem(ThemeData theme, int index) {
+    final isSelected = _selectedIndex == index;
+
+    return Material(
+      color: isSelected
+          ? theme.colorScheme.primary.withValues(alpha: 0.12)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _onDrawerItemTapped(index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: isSelected
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.22),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                )
+              : null,
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  _getDrawerIcon(index),
+                  color: isSelected ? Colors.white : theme.colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  _titles[index],
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                    color: isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.85),
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   IconData _getDrawerIcon(int index) {
     switch (index) {
       case 0: return Icons.dashboard;
@@ -985,5 +1005,165 @@ class _MainScaffoldState extends State<MainScaffold> with SingleTickerProviderSt
   void _onDrawerItemTapped(int index) {
     setState(() => _selectedIndex = index);
     Navigator.of(context).pop();
+  }
+}
+
+/// Drawer header that lives inside the menu's scroll view.
+///
+/// Expanded: logo, app name and the rank pill under them. As the menu scrolls, the
+/// logo and name fade up and out while the rank pill glides to the top-left and stays
+/// pinned there as a slim bar (with a small logo fading in on the right).
+class _DrawerHeaderDelegate extends SliverPersistentHeaderDelegate {
+  _DrawerHeaderDelegate({
+    required this.topInset,
+    required this.rank,
+    required this.color,
+  });
+
+  final double topInset; // status bar height: the header paints underneath it
+  final String rank;
+  final Color color;
+
+  static const double _expandedBody = 124;
+  static const double _collapsedBody = 56;
+  static const double _logoSize = 60;
+  static const double _pillHeight = 28;
+
+  @override
+  double get maxExtent => topInset + _expandedBody;
+
+  @override
+  double get minExtent => topInset + _collapsedBody;
+
+  @override
+  bool shouldRebuild(covariant _DrawerHeaderDelegate old) =>
+      old.topInset != topInset || old.rank != rank || old.color != color;
+
+  static double _lerp(double a, double b, double t) => a + (b - a) * t;
+
+  Widget _logo(double size, double radius) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Image.asset(
+        'assets/logo.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: size,
+          height: size,
+          color: Colors.white.withValues(alpha: 0.15),
+          child: Icon(Icons.school_rounded, color: Colors.white, size: size * 0.5),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final range = maxExtent - minExtent;
+    final t = (shrinkOffset / range).clamp(0.0, 1.0);
+    final e = Curves.easeOutCubic.transform(t);
+
+    // Big logo + name leave first (fully gone by ~55% of the scroll); the small logo
+    // arrives last.
+    final bigOpacity = (1 - t / 0.55).clamp(0.0, 1.0);
+    final smallOpacity = ((t - 0.6) / 0.4).clamp(0.0, 1.0);
+
+    final pillTop = _lerp(topInset + 14 + _logoSize + 10, topInset + (_collapsedBody - _pillHeight) / 2, e);
+    final pillLeft = _lerp(20, 16, e);
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color, color.withValues(alpha: 0.82)],
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(_lerp(28, 18, e))),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.22 * t),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          // Large logo and app name.
+          Positioned(
+            left: 20,
+            top: _lerp(topInset + 14, topInset - 6, e),
+            child: Opacity(
+              opacity: bigOpacity,
+              child: Transform.scale(
+                scale: _lerp(1, 0.8, e),
+                alignment: Alignment.topLeft,
+                child: Row(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: _logo(_logoSize, 16),
+                    ),
+                    const SizedBox(width: 14),
+                    const Text(
+                      'Daitom',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Small logo in the collapsed bar.
+          Positioned(
+            right: 16,
+            top: topInset + (_collapsedBody - 30) / 2,
+            child: Opacity(opacity: smallOpacity, child: _logo(30, 9)),
+          ),
+
+          // The rank pill: glides from under the logo to the top-left and sticks.
+          Positioned(
+            left: pillLeft,
+            top: pillTop,
+            child: Container(
+              height: _pillHeight,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: _lerp(0.18, 0.26, e)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                rank.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

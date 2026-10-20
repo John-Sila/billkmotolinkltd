@@ -1,13 +1,54 @@
 import 'dart:ffi';
 
-import 'package:billkmotolinkltd/services/toast_service.dart';
-import 'package:billkmotolinkltd/utils/utility_functions.dart';
+import 'package:daitom/pages/widgets/mpesa_payment_dialog.dart';
+import 'package:daitom/pages/widgets/progress_steps_dialog.dart';
+import 'package:daitom/services/mpesa_payment_service.dart';
+import 'package:daitom/services/payment_config.dart';
+import 'package:daitom/services/toast_service.dart';
+import 'package:daitom/utils/utility_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'dart:async';
+import 'dart:convert';
+
+/// Where the rider was when they clocked out (used when there are no Daitom
+/// batteries, so there is no drop-off location to pick).
+class ClockoutLocation {
+  final double latitude;
+  final double longitude;
+  final double accuracyMeters;
+  final String? address;
+  final DateTime capturedAt;
+  final bool isMocked;
+
+  const ClockoutLocation({
+    required this.latitude,
+    required this.longitude,
+    required this.accuracyMeters,
+    required this.address,
+    required this.capturedAt,
+    required this.isMocked,
+  });
+
+  /// What gets saved on the clock-out record in Firestore.
+  Map<String, dynamic> toMap() => {
+        'geoPoint': GeoPoint(latitude, longitude),
+        'status': address == null ? 'not_found' : 'found',
+        if (address != null) 'address': address else 'reason': 'address_unknown',
+        'accuracyMeters': double.parse(accuracyMeters.toStringAsFixed(1)),
+        'capturedAt': capturedAt,
+        'isMocked': isMocked,
+      };
+}
+
+/// What the "Fix" button on the location card should open.
+enum LocationErrorAction { none, openLocationSettings, openAppSettings }
 
 class ClockOut extends StatefulWidget {
   const ClockOut({super.key});
@@ -52,6 +93,8 @@ class _ClockOutState extends State<ClockOut> {
     'Other': false,
   };
 
+  final Geocoding _geocoding = Geocoding();
+
   Map<String, TextEditingController> expenseControllers = {};
   List<String> destinations = [];
   String? selectedDestination;
@@ -61,6 +104,189 @@ class _ClockOutState extends State<ClockOut> {
   bool hasClockedOutToday = false;
   bool isClockingOut = false;
   bool? _isOnline;
+
+  /// general/general_variables/battery_availability
+  /// true  -> the business has batteries: ask for the drop-off location and
+  ///          release the rider's batteries (full flow).
+  /// false -> batteries are rented / not registered: no location, and nothing
+  ///          is written to `batteries` (short flow).
+  /// A missing field is treated as true so existing behaviour is unchanged.
+  bool batteryAvailability = true;
+
+  static bool _readBatteryAvailability(Map<String, dynamic>? data) =>
+      data?['battery_availability'] != false;
+
+  // ---- Where the rider is clocking out -------------------------------------
+  // With no Daitom batteries there is no drop-off location to pick, so the
+  // phone's GPS tells us where the rider clocked out instead.
+  ClockoutLocation? _location;
+  bool _locating = false;
+  String? _locationError;
+  LocationErrorAction _locationAction = LocationErrorAction.none;
+  String? _locationFailure; // 'gps_off', 'permission_denied', ... (saved with the record)
+
+  /// Reads the GPS position and turns it into a readable place name.
+  ///
+  /// Never throws and never blocks clock-out: when anything goes wrong the
+  /// location is left empty and [_locationFailure] says why.
+  ///
+  /// [askPermission] false skips the system permission prompt (used at
+  /// clock-out time, so a rider who already said no isn't asked again).
+  Future<void> _captureLocation({
+    bool askPermission = true,
+    Duration gpsTimeout = const Duration(seconds: 20),
+  }) async {
+    if (_locating) {
+      // A capture is already running: wait for it instead of starting a second.
+      for (var i = 0; i < 100 && _locating && mounted; i++) {
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _locating = true;
+        _locationError = null;
+        _locationAction = LocationErrorAction.none;
+      });
+    }
+
+    ClockoutLocation? fix;
+    String? error;
+    String? failure;
+    var action = LocationErrorAction.none;
+
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        error =
+            "Your phone's location (GPS) is off. Turn it on to record where you clock out.";
+        action = LocationErrorAction.openLocationSettings;
+        failure = 'gps_off';
+      } else {
+        var permission = await Geolocator.checkPermission();
+        if (askPermission && permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+
+        if (permission == LocationPermission.deniedForever) {
+          error =
+              'Location permission is blocked. Allow it in the app settings to record where you clock out.';
+          action = LocationErrorAction.openAppSettings;
+          failure = 'permission_blocked';
+        } else if (permission == LocationPermission.denied) {
+          error = 'Location access was not allowed.';
+          failure = 'permission_denied';
+        } else {
+          final position = await Geolocator.getCurrentPosition(
+            locationSettings: LocationSettings(
+              accuracy: LocationAccuracy.best,
+              timeLimit: gpsTimeout,
+            ),
+          );
+          final address =
+              await _resolveAddress(position.latitude, position.longitude);
+          fix = ClockoutLocation(
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracyMeters: position.accuracy,
+            address: address,
+            capturedAt: DateTime.now(),
+            isMocked: position.isMocked,
+          );
+        }
+      }
+    } on TimeoutException {
+      error = 'Could not get a GPS signal. Move to an open area and tap Refresh.';
+      failure = 'no_signal';
+    } catch (e) {
+      debugPrint('Location error: $e');
+      error = 'Could not read your location. Tap Refresh to try again.';
+      failure = 'error';
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      _location = fix; // null when we could not get one
+      _locationError = error;
+      _locationAction = action;
+      _locationFailure = failure;
+    });
+  }
+
+  /// Coordinates -> "Thika Road, Kasarani, Nairobi" (as specific as the map
+  /// data allows). Tries the phone's own geocoder first, then OpenStreetMap.
+  /// Returns null when neither can name the place.
+  Future<String?> _resolveAddress(double lat, double lng) async {
+    int parts(String s) => s.isEmpty ? 0 : s.split(', ').length;
+    var best = '';
+
+    // 1) The phone's built-in geocoder.
+    try {
+      final marks = await _geocoding.placemarkFromCoordinates(lat, lng).timeout(const Duration(seconds: 8));
+      if (marks.isNotEmpty) {
+        final p = marks.first;
+        var text = _composeAddress([
+          (p.thoroughfare ?? '').isNotEmpty ? p.thoroughfare : p.street,
+          p.subLocality,
+          p.locality,
+        ]);
+        if (text.isEmpty) {
+          text = _composeAddress([p.subAdministrativeArea, p.administrativeArea]);
+        }
+        best = text;
+      }
+    } catch (e) {
+      debugPrint('Geocoder failed: $e');
+    }
+
+    // 2) OpenStreetMap, only if the phone gave us nothing or just a city.
+    //    (Some phones, e.g. without Google services, have no geocoder.)
+    if (parts(best) < 2) {
+      try {
+        final res = await http.get(
+          Uri.parse(
+            'https://nominatim.openstreetmap.org/reverse'
+            '?format=jsonv2&zoom=18&addressdetails=1&accept-language=en'
+            '&lat=$lat&lon=$lng',
+          ),
+          headers: {'User-Agent': 'DaitomApp/1.0 (clock-out location)'},
+        ).timeout(const Duration(seconds: 8));
+
+        if (res.statusCode == 200) {
+          final a = (jsonDecode(res.body)['address'] as Map?) ?? {};
+          final osm = _composeAddress([
+            a['road'],
+            a['neighbourhood'],
+            a['suburb'] ?? a['city_district'],
+            a['city'] ?? a['town'] ?? a['village'] ?? a['county'],
+          ]);
+          if (parts(osm) > parts(best)) best = osm;
+        }
+      } catch (e) {
+        debugPrint('Reverse geocoding fallback failed: $e');
+      }
+    }
+
+    return best.isEmpty ? null : best;
+  }
+
+  /// Joins address parts, dropping blanks, duplicates, "Unnamed Road" and
+  /// Google plus codes (e.g. "7RMV+8X").
+  String _composeAddress(Iterable<dynamic> parts) {
+    final seen = <String>{};
+    final out = <String>[];
+    final plusCode = RegExp(r'^\w{4,8}\+\w{2,}');
+    for (final raw in parts) {
+      final p = raw?.toString().trim() ?? '';
+      if (p.isEmpty) continue;
+      if (plusCode.hasMatch(p)) continue;
+      if (p.toLowerCase() == 'unnamed road') continue;
+      if (seen.add(p.toLowerCase())) out.add(p);
+    }
+    return out.join(', ');
+  }
 
 
 
@@ -135,6 +361,126 @@ class _ClockOutState extends State<ClockOut> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Shown instead of the drop-off dropdown when there are no Daitom batteries.
+  /// Informational only: it never stops the rider from clocking out.
+  Widget _buildLocationCard() {
+    final loc = _location;
+    final address = loc?.address;
+    final found = address != null;
+    final Color color =
+        found ? Colors.teal : (_locating ? Colors.blueGrey : Colors.orange);
+
+    final String hint = _locationError ??
+        (loc != null
+            ? "We have your position but couldn't work out the place name."
+            : '');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: _locating
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        found ? Icons.location_on : Icons.location_off,
+                        color: color,
+                        size: 22,
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (found)
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            const TextSpan(text: 'You are clocking out from '),
+                            TextSpan(
+                              text: address,
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                        style: const TextStyle(fontSize: 15),
+                      )
+                    else
+                      Text(
+                        _locating
+                            ? 'Finding your location...'
+                            : "Location couldn't be found",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: _locating ? color : Colors.orange[800]!,
+                        ),
+                      ),
+                    if (found && loc != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'GPS accuracy about ${loc.accuracyMeters.round()} m',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                    if (!found && !_locating) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        hint.isEmpty
+                            ? 'You can still clock out.'
+                            : '$hint You can still clock out.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (!_locating)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                children: [
+                  if (_locationAction == LocationErrorAction.openLocationSettings)
+                    TextButton(
+                      onPressed: () => Geolocator.openLocationSettings(),
+                      child: const Text('Location settings'),
+                    ),
+                  if (_locationAction == LocationErrorAction.openAppSettings)
+                    TextButton(
+                      onPressed: () => Geolocator.openAppSettings(),
+                      child: const Text('App settings'),
+                    ),
+                  TextButton.icon(
+                    onPressed: _captureLocation,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Refresh'),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -228,6 +574,14 @@ class _ClockOutState extends State<ClockOut> {
       commissionPercentage =
           ((generalDoc.data()?['commissionPercentage'] ?? 0) as num).toDouble() / 100.0;
 
+      // Are there Daitom batteries? Decides whether we ask for a location
+      // and whether batteries are touched at clock-out.
+      batteryAvailability = _readBatteryAvailability(generalDoc.data());
+      if (!batteryAvailability) {
+        selectedDestination = null;
+        // Fire and forget: the location card shows the progress.
+        unawaited(_captureLocation());
+      }
 
       // Fetch destinations
       destinations = List<String>.from(generalDoc.data()?['destinations'] ?? []);
@@ -278,8 +632,14 @@ class _ClockOutState extends State<ClockOut> {
 
     if (grossIncomeController.text.isEmpty ||
         todaysIABController.text.isEmpty ||
-        prevIABController.text.isEmpty ||
-        selectedDestination == null) {
+        prevIABController.text.isEmpty) {
+      return false;
+    }
+
+    // With batteries the rider picks the drop-off location. Without batteries
+    // there is nothing to pick. (The GPS location is recorded when we have it,
+    // but it is never required.)
+    if (batteryAvailability && selectedDestination == null) {
       return false;
     }
 
@@ -345,11 +705,37 @@ class _ClockOutState extends State<ClockOut> {
               ),
               const SizedBox(height: 12),
               Text(
-                'This will finalize your batteries and shift data.',
+                batteryAvailability
+                    ? 'This will finalize your batteries and shift data.'
+                    : 'This will finalize your shift data.',
                 style: localTheme.textTheme.bodySmall?.copyWith(
                   color: localTheme.colorScheme.onSurfaceVariant,
                 ),
               ),
+              if (!batteryAvailability && !_locating) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _location?.address != null
+                      ? 'You are clocking out from ${_location!.address}.'
+                      : "Location couldn't be found.",
+                  style: localTheme.textTheme.bodyMedium?.copyWith(
+                    color: _location?.address != null
+                        ? localTheme.colorScheme.primary
+                        : localTheme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+              if (kMpesaPaymentEnabled && netIncome.round() >= 1) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'You will get an M-Pesa prompt for KES ${NumberFormat('#,##0').format(netIncome.round())}. Keep your phone nearby.',
+                  style: localTheme.textTheme.bodySmall?.copyWith(
+                    color: localTheme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -427,6 +813,9 @@ class _ClockOutState extends State<ClockOut> {
       isClockingOut = true;
     });
 
+    // The "what's happening now" dialog shown after the payment succeeds.
+    ProgressStepsController? progress;
+
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
       final now = DateTime.now();
@@ -443,7 +832,50 @@ class _ClockOutState extends State<ClockOut> {
         Fluttertoast.showToast(msg: "User not found");
         return; 
       }
+
+      // Read battery_availability fresh. It decides how we write:
+      //   true  -> full flow (location + release batteries)
+      //   false -> short flow (no battery writes at all)
+      final generalSnap = await fs.collection('general').doc('general_variables').get();
+      final useBatteries = _readBatteryAvailability(generalSnap.data());
+      if (mounted && useBatteries != batteryAvailability) {
+        setState(() => batteryAvailability = useBatteries);
+      }
+
+      // The flag flipped to true after the form was filled: a location is
+      // needed now. Stop before any payment is taken.
+      if (useBatteries && selectedDestination == null) {
+        Fluttertoast.showToast(msg: "Select a drop-off location");
+        return;
+      }
       
+      // No Daitom batteries: record where the rider is, using GPS. This NEVER
+      // blocks clock-out. Use the fix the screen already has if it is recent,
+      // otherwise try for a fresh one (briefly, and without asking for
+      // permission again). If we still have nothing, the record simply says
+      // the location couldn't be found. An old fix is never saved as if it
+      // were current.
+      Map<String, dynamic>? locationReport;
+      if (!useBatteries) {
+        bool isFresh(ClockoutLocation? l) =>
+            l != null &&
+            DateTime.now().difference(l.capturedAt) <= const Duration(minutes: 2);
+
+        if (!isFresh(_location)) {
+          await _captureLocation(
+            askPermission: false,
+            gpsTimeout: const Duration(seconds: 8),
+          );
+        }
+
+        final fix = isFresh(_location) ? _location : null;
+        locationReport = fix?.toMap() ??
+            {
+              'status': 'not_found',
+              'reason': _locationFailure ?? 'unavailable',
+            };
+      }
+
       final userName = userSnap.get('userName');
 
       // The shift this rider is actually closing out (from the fresh doc, not
@@ -482,6 +914,41 @@ class _ClockOutState extends State<ClockOut> {
           - (todaysIAB - prevInApp)
           - expenseData.values.whereType<num>().fold(0.0, (s, v) => s + v)).toStringAsFixed(2));
 
+      // ---- M-Pesa payment ---------------------------------------------------
+      // The rider pays today's net income through an M-Pesa PIN prompt. Nothing
+      // below (battery release, clock-out record, pending amount) runs unless the
+      // payment succeeds, and what gets recorded is what Safaricom confirmed.
+      MpesaPaymentResult? payment;
+      final amountDue = netIncome.round();
+      if (kMpesaPaymentEnabled && amountDue >= 1) {
+        if (!mounted) return;
+        payment = await showMpesaPaymentDialog(
+          context,
+          amount: amountDue,
+          initialPhone: (userSnap.data()?['phoneNumber'] ?? '').toString(),
+        );
+        if (payment == null) {
+          Fluttertoast.showToast(msg: "Clock-out cancelled. The payment was not completed.");
+          return;
+        }
+      }
+      final paidAmount = payment?.amount ?? 0;
+
+      // ---- Progress dialog --------------------------------------------------
+      // Opens the moment the payment is confirmed and stays until every write
+      // is finished, so the rider knows when it is really done.
+      progress = ProgressStepsController([
+        if (payment != null) 'Payment confirmed',
+        if (useBatteries) 'Releasing batteries',
+        'Saving clock-out record',
+        'Updating weekly deviations',
+        'Updating monthly & yearly stats',
+      ], title: 'Finishing clock-out');
+      if (!mounted) return;
+      progress.show(context);
+      progress.begin();
+      if (payment != null) await progress.next(); // Payment confirmed
+
       final dateKey = todayHumanKey();                  
       final weekDay = weekdayName();                    
 
@@ -490,15 +957,21 @@ class _ClockOutState extends State<ClockOut> {
       // Each bike has a day slot and a night slot, so leaving the slot alone
       // here also guarantees we never disturb the OTHER shift's rider.
       // This clock-out is recorded against `shift` below.)
-      final batteryQuery = await batteriesRef.where('assignedRider', isEqualTo: userName).get();
-      for (var b in batteryQuery.docs) {
-        await b.reference.update({
-          'assignedRider': "None",
-          'assignedBike': "None",
-          'confirmedStatus': false,
-          'batteryLocation': selectedLoc,
-          'offTime': now,
-        });
+      //
+      // Only when the business has batteries. With battery_availability ==
+      // false there is nothing to release, so `batteries` is not touched.
+      if (useBatteries) {
+        final batteryQuery = await batteriesRef.where('assignedRider', isEqualTo: userName).get();
+        for (var b in batteryQuery.docs) {
+          await b.reference.update({
+            'assignedRider': "None",
+            'assignedBike': "None",
+            'confirmedStatus': false,
+            'batteryLocation': selectedLoc,
+            'offTime': now,
+          });
+        }
+        await progress.next(); // Releasing batteries
       }
 
       // Process shift timelines
@@ -513,6 +986,16 @@ class _ClockOutState extends State<ClockOut> {
         "posted_at": now,
         "timeElapsed": formatTimeElapsed(timeElapsed),
         if (shift != null) "shift": shift,
+        if (locationReport != null) "clockoutLocation": locationReport,
+        if (payment != null)
+          "payment": {
+            "method": "mpesa_stk",
+            "checkoutId": payment.checkoutId,
+            "receipt": payment.receipt,
+            "amountDue": amountDue,
+            "amountPaid": payment.amount,
+            "paidAt": DateTime.now(),
+          },
       };
 
       final notificationId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -522,7 +1005,7 @@ class _ClockOutState extends State<ClockOut> {
         "currentInAppBalance": todaysIAB,
         "isClockedIn": false,
         "netClockedLastly": netIncome,
-        "pendingAmount": double.parse((pendingAmountOld + netIncome).toStringAsFixed(2)),
+        "pendingAmount": double.parse((pendingAmountOld + netIncome - paidAmount).toStringAsFixed(2)),
         "lastClockDate": now,
         "currentBike": "None",
         "currentShift": "None",
@@ -534,6 +1017,15 @@ class _ClockOutState extends State<ClockOut> {
         "numberOfNotifications": FieldValue.increment(1),
       });
 
+      if (payment != null) {
+        try {
+          await MpesaPaymentService().consume(payment.checkoutId);
+        } catch (e) {
+          debugPrint('Could not mark payment as used: $e');
+        }
+      }
+      await progress.next(); // Saving clock-out record
+
       final deviationData = {
         "grossIncome": gross,
         "netIncome": netIncome,
@@ -544,6 +1036,7 @@ class _ClockOutState extends State<ClockOut> {
       await deviationsRef.set({
         userName: {weekDay: deviationData}
       }, SetOptions(merge: true));
+      await progress.next(); // Updating weekly deviations
 
       // Handle monthly and yearly stats over transactions safely
       await FirebaseFirestore.instance.runTransaction((transaction) async {
@@ -576,10 +1069,15 @@ class _ClockOutState extends State<ClockOut> {
         netIncome: netIncome,
         expenseData: expenseData,
       );
-      
+      await progress.next(); // Updating monthly & yearly stats
+
+      await progress.finish(); // all green, then closes
       ToastService.success("Clock-out successful! See you next time.");
     } catch (e) {
       if (!mounted) return;
+
+      // Turn the running step red and close the progress dialog first.
+      await progress?.abort();
       
       // Explicitly dismiss confirmation dialog on structural database breakdown error before opening next window
       if (Navigator.canPop(dialogContext)) {
@@ -605,6 +1103,9 @@ class _ClockOutState extends State<ClockOut> {
         ),
       );
     } finally {
+      // Safety net: never leave the progress dialog stuck on screen.
+      progress?.close();
+
       // 5. Unlocks UI processing state unconditionally
       if (mounted) {
         setState(() {
@@ -1026,20 +1527,26 @@ class _ClockOutState extends State<ClockOut> {
 
 
 
-                // Location dropdown
-                _buildDropdownField<String>(
-                  value: selectedDestination,
-                  label: 'Select Location',
-                  hint: 'Choose destination',
-                  icon: Icons.location_on_outlined,
-                  items: destinations.map((loc) {
-                    return DropdownMenuItem(value: loc, child: Text(loc));
-                  }).toList(),
-                  onChanged: (val) {
-                    setState(() => selectedDestination = val);
-                  },
-                ),
-                const SizedBox(height: 20),
+                // With batteries: the rider picks the drop-off location.
+                // Without batteries: no selector, the GPS location card instead.
+                if (batteryAvailability) ...[
+                  _buildDropdownField<String>(
+                    value: selectedDestination,
+                    label: 'Select Location',
+                    hint: 'Choose destination',
+                    icon: Icons.location_on_outlined,
+                    items: destinations.map((loc) {
+                      return DropdownMenuItem(value: loc, child: Text(loc));
+                    }).toList(),
+                    onChanged: (val) {
+                      setState(() => selectedDestination = val);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                ] else ...[
+                  _buildLocationCard(),
+                  const SizedBox(height: 20),
+                ],
 
 
                 // Net Income

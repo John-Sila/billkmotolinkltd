@@ -1,0 +1,24 @@
+name = "daitom-pay"              # keep "mpesa" / "safaricom" out of this name: Daraja rejects callback URLs containing them
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+# ---- SANDBOX values (for testing with Safaricom's simulator) ----
+MPESA_ENV = "sandbox"
+MPESA_SHORTCODE = "174379"                    # sandbox test paybill
+MPESA_ACCOUNT_REF = "DAITOM"                  # account no. shown on the prompt + SMS (max 12 chars)
+MPESA_TXN_TYPE = "CustomerPayBillOnline"      # PAYBILL (leave as is)
+
+# ---- PRODUCTION values (see README, "Going live") ----
+# MPESA_ENV = "production"
+# MPESA_SHORTCODE = "<YOUR DAITOM PAYBILL NUMBER>"
+# MPESA_ACCOUNT_REF = "<YOUR DAITOM ACCOUNT NUMBER>"
+# MPESA_TXN_TYPE = "CustomerPayBillOnline"
+
+FIREBASE_PROJECT_ID = "daitom"                # MUST equal the Firebase project id, or every rider token is rejected
+MAX_AMOUNT = "50000"                          # largest prompt a rider can request (KES)
+
+[[d1_databases]]
+binding = "DB"
+database_name = "daitom-pay"
+database_id = "f9a96b68-8ee6-45d5-9182-e803f0c1de8c"

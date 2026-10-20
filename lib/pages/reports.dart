@@ -1,12 +1,12 @@
-import 'package:billkmotolinkltd/pages/reports/non_variable_docs.dart';
-import 'package:billkmotolinkltd/pages/reports/wage_evaluator.dart';
-import 'package:billkmotolinkltd/pages/reports/absenteeism.dart';
+import 'package:daitom/pages/reports/non_variable_docs.dart';
+import 'package:daitom/pages/reports/wage_evaluator.dart';
+import 'package:daitom/pages/reports/absenteeism.dart';
 import 'package:flutter/material.dart';
-import 'package:billkmotolinkltd/pages/reports/this_week_as_is.dart';
-import 'package:billkmotolinkltd/pages/reports/general_as_is_state.dart';
-import 'package:billkmotolinkltd/pages/reports/human_resource_report.dart';
-import 'package:billkmotolinkltd/pages/reports/rider_daily_statistics.dart';
-import 'package:billkmotolinkltd/pages/reports/weekly_analysis_report.dart';
+import 'package:daitom/pages/reports/this_week_as_is.dart';
+import 'package:daitom/pages/reports/general_as_is_state.dart';
+import 'package:daitom/pages/reports/human_resource_report.dart';
+import 'package:daitom/pages/reports/rider_daily_statistics.dart';
+import 'package:daitom/pages/reports/weekly_analysis_report.dart';
 
 class Reports extends StatelessWidget {
   const Reports({super.key});

@@ -1,4 +1,4 @@
-package com.billkmotolinkltd.flutter
+package com.daitom.flutter
 
 import io.flutter.embedding.android.FlutterActivity
 

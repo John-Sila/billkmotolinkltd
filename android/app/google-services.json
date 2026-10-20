@@ -1,40 +1,21 @@
 {
   "project_info": {
-    "project_number": "913993722547",
-    "project_id": "billk1",
-    "storage_bucket": "billk1.firebasestorage.app"
+    "project_number": "762539988805",
+    "project_id": "daitom",
+    "storage_bucket": "daitom.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:913993722547:android:2e8ed2accc5dfe3ae45ec6",
+        "mobilesdk_app_id": "1:762539988805:android:edd4b6d3dc3b9f7258102c",
         "android_client_info": {
-          "package_name": "com.billkmotolink.ltd"
+          "package_name": "com.daitom.flutter"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyA0wgSsoqB5Xy46oZdpJmNJC9hoXj0hKFw"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:913993722547:android:4b32920950f57291e45ec6",
-        "android_client_info": {
-          "package_name": "com.billkmotolinkltd.flutter"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyA0wgSsoqB5Xy46oZdpJmNJC9hoXj0hKFw"
+          "current_key": "AIzaSyC6mXRXth3bft92Z3pfiaay0z5mZ2hYe74"
         }
       ],
       "services": {
